@@ -1,0 +1,53 @@
+# ----- Editors/IDEs -----
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+# VS Code
+.vscode/
+.history/
+
+# Common build outputs
+build/
+dist/
+coverage/
+.coverage
+coverage-final.json
+coverage.xml
+.nyc_output/
+
+# ----- Java/Kotlin -----
+# Build systems
+.target/  # sometimes created by tools
+.target
+/worker/target
+/target/
+/out/
+/build/
+.gradle/
+.gradle-cache/
+.classpath
+.project
+.settings/
+
+# Test directories (excluded from repository)
+**/src/test/
+
+# ----- Logs -----
+*.log
+logs/
+*.log.*
+
+# ----- Environment/Secrets -----
+.env
+.env.*
+!.env.example
+!.env.sample
+/do-not-commit
+*-secret*
+*-secrets*
+*.key
+*.pem
+/Docker
+.cursor
