@@ -1,0 +1,53 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 8000
+
+  adminConnectors:
+    - type: http
+      port: 8001
+
+logging:
+  level: INFO
+  loggers:
+    com.drift: INFO
+  appenders:
+    - type: console
+      threshold: ALL
+      timeZone: IST
+      logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
+
+redisConfiguration:
+  password: ${REDIS_PASSWORD}
+  master: ${REDIS_MASTER}
+  sentinels: ${REDIS_SENTINELS}
+  prefix: ${REDIS_PREFIX}
+  maxTotal: 50
+  maxWaitMillis: 100
+  maxIdle: 25
+  minIdle: 25
+  testOnBorrow: true
+  blockWhenExhausted: true
+
+cacheRefreshExecutorServiceConfig:
+  minThreads: 1
+  maxThreads: 3
+  queueSize: 10
+
+staticCacheRefreshConfig:
+  nodeDefinitionConfig: 5
+  workflowConfig: 5
+
+cacheMaxEntriesConfig:
+  nodeDefinitionConfig: 1000 # 100 nodes, 10 versions each
+  workflowConfig: 1000 # 100 workflows, 10 versions each
+
+hbaseConfigBucket: ${HBASE_CONFIG_BUCKET}
+
+temporalFrontEnd: ${TEMPORAL_FRONTEND}
+
+temporalTaskQueue: ${TEMPORAL_TASK_QUEUE}
+
+hadoopUserName: ${HADOOP_USERNAME}
+
+hadoopLoginUser: ${HADOOP_LOGIN_USER}

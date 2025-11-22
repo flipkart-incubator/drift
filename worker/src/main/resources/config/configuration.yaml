@@ -1,0 +1,70 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 7200
+
+  adminConnectors:
+    - type: http
+      port: 7201
+
+redisConfiguration:
+  password: ${REDIS_PASSWORD}
+  master: ${REDIS_MASTER}
+  sentinels: ${REDIS_SENTINELS}
+  prefix: ${REDIS_PREFIX}
+  maxTotal: 50
+  maxWaitMillis: 100
+  maxIdle: 25
+  minIdle: 25
+  testOnBorrow: true
+  blockWhenExhausted: true
+
+cacheRefreshExecutorServiceConfig:
+  minThreads: 1
+  maxThreads: 3
+  queueSize: 10
+
+staticCacheRefreshConfig:
+  nodeDefinitionConfig: 5
+  workflowConfig: 5
+
+cacheMaxEntriesConfig:
+  nodeDefinitionConfig: 1000 # 100 nodes, 10 versions each
+  workflowConfig: 1000 # 100 workflows, 10 versions each
+
+enumStoreBucket: ${ENUM_STORE_BUCKET}
+
+hbaseConfigBucket: ${HBASE_CONFIG_BUCKET}
+
+prometheusConfig:
+  port: 9090
+  path: "/metrics"
+
+awaitTerminationTimeoutInSec: 20
+
+workerDynamicOptions:
+  workflowTaskPoller: 20
+  activityTaskPoller: 50
+  workflowCacheSize: 600
+  maxWorkflowThreadCount: 800
+
+
+abConfiguration:
+  isABEnabled: ${AB_ENABLED}
+  clientId: ${AB_CLIENT_ID}
+  tenantId: ${AB_TENANT_ID}
+  endpoint: ${AB_ENDPOINT}
+  clientSecretKey: ${AB_CLIENT_SECRET_KEY}
+
+# Optional Hadoop identity parameters for HBase connection
+hadoopUserName: ${HADOOP_USERNAME}
+hadoopLoginUser: ${HADOOP_LOGIN_USER}
+
+# Authentication configuration for AuthN service
+authClientName: ${AUTH_CLIENT_NAME}
+authClientUrl: ${AUTH_CLIENT_URL}
+authClientSecret: ${AUTH_CLIENT_SECRET}
+
+temporalTaskQueue: ${TEMPORAL_TASK_QUEUE}
+temporalFrontEnd: ${TEMPORAL_FRONTEND}
+

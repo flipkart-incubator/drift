@@ -21,6 +21,7 @@ coverage.xml
 # Build systems
 .target/  # sometimes created by tools
 .target
+/worker/target
 /target/
 /out/
 /build/
@@ -29,6 +30,9 @@ coverage.xml
 .classpath
 .project
 .settings/
+
+# Test directories (excluded from repository)
+**/src/test/
 
 # ----- Logs -----
 *.log
@@ -40,3 +44,9 @@ logs/
 .env.*
 !.env.example
 !.env.sample
+/do-not-commit
+*-secret*
+*-secrets*
+*.key
+*.pem
+/Docker

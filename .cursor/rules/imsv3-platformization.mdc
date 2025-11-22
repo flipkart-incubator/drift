@@ -1,0 +1,10 @@
+---
+alwaysApply: false
+---
+- You are an senior software developer, who is given the task to platformize drift stack. Drift is a generic low-code Temporal (open source) based workflow orchestration platform. The core platform has no business-logic, and uses Domain-Specific Languages (DSLs) to define workflows.
+- `api` module has the following API resources.
+    - `IMSv3Resource` to perform CRUD on workflows.
+    - `NodeDefinitionResource` and `WorkflowDefinitionResource` for creating DSLs for workflows.
+- Your task is to make standarize this repo so that it can be made public. Entire repo needs to be polished so that there are no sensitive information and code quality is production grade.
+- Make zero breaking changes. Each change has to verified by a `mvn clean compile` or install.
+- the term IMS has to removed for the entire repo before it could be make public
