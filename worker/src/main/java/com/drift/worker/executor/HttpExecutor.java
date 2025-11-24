@@ -138,10 +138,6 @@ public class HttpExecutor {
         }
     }
 
-    public JsonNode execute(HttpDetails httpDetails) throws IOException {
-        return execute(httpDetails, httpDetails.getUrl());
-    }
-
     private static void addAuthToken(HttpDetails httpDetails) {
         String targetClientId = httpDetails.getTargetClientId();
         if (targetClientId != null && !targetClientId.isEmpty() && !targetClientId.equals("null")) {
