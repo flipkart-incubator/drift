@@ -1,7 +1,5 @@
 package com.drift.api.service.utils;
 
-import com.flipkart.kloud.config.ConfigClient;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
@@ -13,7 +11,6 @@ import java.util.concurrent.ThreadLocalRandom;
 @Slf4j
 @Singleton
 public class Utility {
-    private static final String NO_INCIDENT_WORKFLOWS = "no_incident_workflows";
     private static final String WORKFLOW_ID_PREFIX = "WF-";
     private static final DateTimeFormatter ID_DATE_FORMAT = DateTimeFormatter.ofPattern("yyMMddHHmmssSSS");
     private static final int RANDOM_ID_BOUND = 100000;

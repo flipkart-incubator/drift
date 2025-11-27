@@ -23,40 +23,6 @@
     <modelVersion>4.0.0</modelVersion>
     <version>1.0.0-RELEASE</version>
     <artifactId>api</artifactId>
-    <repositories>
-        <repository>
-            <snapshots>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-            <id>fk-jfrog-snapshot</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-        <repository>
-            <id>fk-jfrog-release</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-    </repositories>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>fk-jfrog-snapshot</id>
-            <name>libs-snapshot</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </snapshotRepository>
-        <repository>
-            <id>fk-jfrog-release</id>
-            <name>libs-rel</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-    </distributionManagement>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>fk-jfrog-snapshot</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </pluginRepository>
-    </pluginRepositories>
     <dependencies>
         <dependency>
             <groupId>com.google.inject</groupId>
@@ -137,10 +103,9 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>com.flipkart.kloud.config</groupId>
-            <artifactId>client-java</artifactId>
-            <version>1.5.10</version>
-            <scope>compile</scope>
+            <groupId>com.netflix.archaius</groupId>
+            <artifactId>archaius-core</artifactId>
+            <version>0.7.12</version>
         </dependency>
     </dependencies>
     <properties/>

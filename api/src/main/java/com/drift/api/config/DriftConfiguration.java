@@ -22,7 +22,7 @@ public class DriftConfiguration extends Configuration {
     @NotNull
     private CacheMaxEntriesConfig cacheMaxEntriesConfig;
     @NotNull
-    private String hbaseConfigBucket;
+    private String hbasePropertiesPath;
     @NotNull
     private String temporalFrontEnd;
     @NotNull

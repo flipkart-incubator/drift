@@ -11,14 +11,9 @@ import com.flipkart.hbaseobjectmapper.codec.BestSuitCodec;
 import com.drift.persistence.annotations.PrimaryKey;
 import com.drift.persistence.annotations.Version;
 import com.drift.persistence.exception.ApiException;
-import com.google.common.collect.Lists;
-import com.sematext.hbase.wd.AbstractRowKeyDistributor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.filter.FilterList;
-import org.apache.hadoop.hbase.filter.MultiRowRangeFilter;
-import org.apache.hadoop.hbase.filter.PageFilter;
 import org.apache.hadoop.hbase.filter.PrefixFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
@@ -28,8 +23,6 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Slf4j
 public abstract class AbstractEntityDao<ROWKEY extends Serializable & Comparable<ROWKEY>, ENTITY extends HBRecord<ROWKEY>, KEY extends Serializable & Comparable<KEY>>
@@ -38,16 +31,15 @@ public abstract class AbstractEntityDao<ROWKEY extends Serializable & Comparable
     protected final Optional<Pair<String, String>> versionFamilyAndColumn;
     protected final Optional<Pair<String, String>> primaryKeyFamilyAndColumn;
     private final IConnectionProvider connectionProvider;
-    private static final long PERF_TTL = TimeUnit.HOURS.toMillis(2);
 
-    protected AbstractEntityDao(IConnectionProvider connectionProvider, Connection defaultConnection, ObjectMapper objectMapper) throws IOException {
+    protected AbstractEntityDao(IConnectionProvider connectionProvider, Connection defaultConnection, ObjectMapper objectMapper) {
         super(defaultConnection, new BestSuitCodec(objectMapper));
         this.connectionProvider = connectionProvider;
         versionFamilyAndColumn = getFamilyAndColumn(Version.class);
         primaryKeyFamilyAndColumn = getFamilyAndColumn(PrimaryKey.class);
     }
 
-    private Optional<Pair<String, String>> getFamilyAndColumn(Class<? extends Annotation> annotation) throws IOException {
+    private Optional<Pair<String, String>> getFamilyAndColumn(Class<? extends Annotation> annotation) {
         for (Field field : super.hbRecordClass.getDeclaredFields()) {
             if (field.isAnnotationPresent(annotation)) {
                 HBColumn column = field.getAnnotation(HBColumn.class);
@@ -60,58 +52,6 @@ public abstract class AbstractEntityDao<ROWKEY extends Serializable & Comparable
     /*
     * do not change this
     * */
-
-    //scan in all the buckets , after skipping the offset number of records in current bucket
-    @Timed(name = "fetchBulk", absolute = true)
-    @ExceptionMetered
-    public List<ENTITY> fetchBulk(ROWKEY startRowKey,
-                                  ROWKEY endRowKey,
-                                  String columnFamily,
-                                  FilterList filter,
-                                  int pageSize,
-                                  Optional<Pair<String, String>> offset,
-                                  AbstractRowKeyDistributor keyDistributor,
-                                  ConnectionType connectionType) throws IOException {
-        Scan scanTmp = new Scan()
-                .withStartRow(hbObjectMapper.toIbw(startRowKey).get())
-                .withStopRow(hbObjectMapper.toIbw(endRowKey).get())
-                .addFamily(hbObjectMapper.toIbw(columnFamily).get())
-                .setScanMetricsEnabled(true)
-                .setLimit(pageSize)
-                .setBatch(pageSize);
-        Scan[] scans = keyDistributor.getDistributedScans(scanTmp);
-
-        List<MultiRowRangeFilter.RowRange> rowRanges = Lists.newArrayList();
-        int i = 0;
-        if (offset.isPresent()) {
-            byte[] scanStartRowKey = Bytes.toBytes(offset.get().getFirst());
-            byte[] compareRowKey = Bytes.toBytes(offset.get().getSecond());
-            for (; i < scans.length; i++) {
-                if (Bytes.compareTo(scans[i].getStartRow(), compareRowKey) <= 0 && Bytes.compareTo(scans[i].getStopRow(), compareRowKey) > 0) {
-                    rowRanges.add(new MultiRowRangeFilter.RowRange(scanStartRowKey, false, scans[i].getStopRow(), false));
-                    i++;
-                    break;
-                }
-            }
-        }
-        for (; i < scans.length; i++) {
-            rowRanges.add(new MultiRowRangeFilter.RowRange(scans[i].getStartRow(), true, scans[i].getStopRow(), false));
-        }
-
-        filter.addFilter(Lists.newArrayList(new MultiRowRangeFilter(rowRanges), new PageFilter(pageSize)));
-
-        Scan scan = new Scan()
-                .addFamily(hbObjectMapper.toIbw(columnFamily).get())
-                .setScanMetricsEnabled(true)
-                .setFilter(filter);
-
-        log.info("scan --> " + scanTmp.toJSON());
-        try (Table table = getHBTable(connectionType); ResultScanner scanner = table.getScanner(scan)) {
-            return Arrays.stream(scanner.next(pageSize))
-                    .map(x -> hbObjectMapper.readValue(x, hbRecordClass))
-                    .collect(Collectors.toList());
-        }
-    }
 
     //Use this for only static entities
     @Timed
@@ -194,55 +134,6 @@ public abstract class AbstractEntityDao<ROWKEY extends Serializable & Comparable
                     .qualifier(hbObjectMapper.toIbw(primaryKeyFamilyAndColumn.get().getSecond()).get())
                     .ifEquals(hbObjectMapper.toIbw(primaryKey).get())
                     .thenPut(put);
-        }
-    }
-
-    @Timed
-    @ExceptionMetered
-    public boolean updateWithVersion(ENTITY entity, Integer currentVersion, ConnectionType connectionType) throws IOException {
-        if (Objects.isNull(entity)) {
-            throw new ApiException("Entity cannot be null");
-        }
-        if (!versionFamilyAndColumn.isPresent()) {
-            throw new ApiException("@version annotation is not present in entity");
-        }
-        Put put = getHBasePutRequest(entity);
-        log.info("Current version version " + currentVersion);
-        try (Table table = getHBTable(connectionType)) {
-            boolean b = false;
-            if (currentVersion != null) {
-                // if version starts from non null value
-                b = table.checkAndMutate(hbObjectMapper.toIbw(entity.composeRowKey()).get(), hbObjectMapper.toIbw(versionFamilyAndColumn.get().getFirst()).get())
-                        .qualifier(hbObjectMapper.toIbw(versionFamilyAndColumn.get().getSecond()).get())
-                        .ifEquals(hbObjectMapper.toIbw(currentVersion).get())
-                        .thenPut(put);
-            } else {
-                ///if version has started from null
-                b = table.checkAndMutate(hbObjectMapper.toIbw(entity.composeRowKey()).get(), hbObjectMapper.toIbw(versionFamilyAndColumn.get().getFirst()).get())
-                        .qualifier(hbObjectMapper.toIbw(versionFamilyAndColumn.get().getSecond()).get())
-                        .ifNotExists()
-                        .thenPut(put);
-            }
-            return b;
-        }
-    }
-
-    public List<ENTITY> bulkGet(List<ROWKEY> rowkeys, Optional<FilterList> filterList, ConnectionType connectionType, Optional<String> colfam) throws IOException {
-        List<Get> gets = rowkeys.parallelStream()
-                .map(key -> {
-                    Get get = getGet(key);
-                    colfam.ifPresent(cf -> get.addFamily(Bytes.toBytes(cf)));
-                    filterList.ifPresent(filters -> get.setFilter(filters));
-                    return get;
-                }).collect(Collectors.toList());
-        try (Table table = getHBTable(connectionType)) {
-            Result[] results = table.get(gets);
-            return Arrays
-                    .stream(results)
-                    .parallel()
-                    .filter(res -> !res.isEmpty())
-                    .map(res -> hbObjectMapper.readValue(res, hbRecordClass))
-                    .collect(Collectors.toList());
         }
     }
 

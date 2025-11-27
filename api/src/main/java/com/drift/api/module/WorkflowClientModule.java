@@ -7,10 +7,9 @@ import com.drift.persistence.dao.IConnectionProvider;
 import com.drift.api.exception.JerseyViolationInformativeExceptionMapper;
 import com.drift.api.config.RedisConfiguration;
 import com.drift.api.exception.mapper.ApiExceptionMapper;
-import com.flipkart.kloud.config.ConfigClient;
-import com.flipkart.kloud.config.DynamicBucket;
 import com.google.inject.*;
 import com.google.inject.name.Names;
+import com.netflix.config.DynamicProperty;
 import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -96,26 +95,20 @@ public class WorkflowClientModule extends AbstractModule {
     }
 
     public static class ConnectionProviderWorker implements Provider<Connection> {
-        private final ConfigClient configClient;
-        private final String hbaseConfigBucket;
         private final DriftConfiguration driftConfiguration;
 
         @Inject
-        public ConnectionProviderWorker(ConfigClient configClient, DriftConfiguration driftConfiguration) {
-            this.configClient = configClient;
-            this.hbaseConfigBucket = driftConfiguration.getHbaseConfigBucket();
+        public ConnectionProviderWorker(DriftConfiguration driftConfiguration) {
             this.driftConfiguration = driftConfiguration;
         }
 
         @Override
         public Connection get() {
-            String zkQuorum = null;
+            String zkQuorum;
             try {
-                DynamicBucket bucket = configClient.getDynamicBucket(hbaseConfigBucket);
-                zkQuorum = bucket.getString("zookeeperQuoramHotCalvin");
+                zkQuorum = DynamicProperty.getInstance("zookeeper.quorum.hot").getString();
             } catch (Exception e) {
-                log.error("Failed to fetch zookeeperQuorumHotCalvin from config bucket: {}", hbaseConfigBucket, e);
-                throw new RuntimeException("Failed to fetch zookeeperQuoramHotCalvin from config bucket", e);
+                throw new RuntimeException("Failed to fetch zookeeperQuorumHot from config", e);
             }
 
             if (StringUtils.isEmpty(zkQuorum)) {

@@ -16,6 +16,7 @@ import com.drift.api.resources.WorkflowDefinitionResource;
 import com.drift.api.module.WorkflowClientModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.netflix.config.*;
 import io.dropwizard.Application;
 import io.dropwizard.configuration.EnvironmentVariableSubstitutor;
 import io.dropwizard.configuration.SubstitutingSourceProvider;
@@ -56,6 +57,10 @@ public class DriftApplication extends Application<DriftConfiguration> {
 
     @Override
     public void run(DriftConfiguration configuration, Environment environment) {
+        // Initialize DynamicPropertyFactory with configuration source
+        ConcurrentCompositeConfiguration compositeConfiguration = getConcurrentCompositeConfiguration(configuration);
+        DynamicPropertyFactory.initWithConfigurationSource(compositeConfiguration);
+        // Create Guice injector after properties are loaded
         Injector injector = Guice.createInjector(new WorkflowClientModule(configuration, environment, metricRegistry));
         environment.jersey().register(injector.getInstance(WorkflowResource.class));
         environment.jersey().register(injector.getInstance(NodeDefinitionResource.class));
@@ -65,6 +70,19 @@ public class DriftApplication extends Application<DriftConfiguration> {
         environment.jersey().register(injector.getInstance(ApiExceptionMapper.class));
         final JmxReporter reporter = JmxReporter.forRegistry(metricRegistry).build();
         reporter.start();
+    }
+
+    private static ConcurrentCompositeConfiguration getConcurrentCompositeConfiguration(DriftConfiguration configuration) {
+        DynamicURLConfiguration dynamicConfiguration = new DynamicURLConfiguration(
+                50000,
+                20000,
+                false,
+                configuration.getHbasePropertiesPath()
+        );
+        ConcurrentCompositeConfiguration compositeConfiguration =
+                new ConcurrentCompositeConfiguration();
+        compositeConfiguration.addConfiguration(dynamicConfiguration);
+        return compositeConfiguration;
     }
 }
 

@@ -12,40 +12,6 @@
     <artifactId>commons</artifactId>
     <version>1.0.0-RELEASE</version>
 
-    <repositories>
-        <repository>
-            <snapshots>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-            <id>fk-jfrog-snapshot</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-        <repository>
-            <id>fk-jfrog-release</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-    </repositories>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>fk-jfrog-snapshot</id>
-            <name>libs-snapshot</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </snapshotRepository>
-        <repository>
-            <id>fk-jfrog-release</id>
-            <name>libs-rel</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-    </distributionManagement>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>fk-jfrog-snapshot</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </pluginRepository>
-    </pluginRepositories>
     <dependencies>
         <dependency>
             <groupId>com.codahale.metrics</groupId>

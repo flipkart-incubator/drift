@@ -30,6 +30,7 @@ coverage.xml
 .classpath
 .project
 .settings/
+**/target
 
 # Test directories (excluded from repository)
 **/src/test/

@@ -42,7 +42,7 @@ cacheMaxEntriesConfig:
   nodeDefinitionConfig: 1000 # 100 nodes, 10 versions each
   workflowConfig: 1000 # 100 workflows, 10 versions each
 
-hbaseConfigBucket: ${HBASE_CONFIG_BUCKET}
+hbasePropertiesPath: ${HBASE_CONFIG_BUCKET}
 
 temporalFrontEnd: ${TEMPORAL_FRONTEND}
 
