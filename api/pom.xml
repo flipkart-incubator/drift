@@ -20,6 +20,7 @@
             </plugin>
         </plugins>
     </build>
+    <groupId>com.flipkart.drift</groupId>
     <modelVersion>4.0.0</modelVersion>
     <version>1.0.0-RELEASE</version>
     <artifactId>api</artifactId>
@@ -81,7 +82,7 @@
             <version>0.8.8</version>
         </dependency>
         <dependency>
-            <groupId>com.flipkart</groupId>
+            <groupId>com.flipkart.drift</groupId>
             <artifactId>commons</artifactId>
             <version>1.0.0-RELEASE</version>
         </dependency>
@@ -103,7 +104,7 @@
             <version>0.7.12</version>
         </dependency>
         <dependency>
-            <groupId>com.flipkart</groupId>
+            <groupId>com.flipkart.drift</groupId>
             <artifactId>hbase-entities</artifactId>
             <version>1.0.0-RELEASE</version>
             <scope>compile</scope>
