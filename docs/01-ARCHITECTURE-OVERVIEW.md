@@ -16,7 +16,7 @@
 
 ### Key Features
 - **Low-Code/No-Code**: On-the-fly workflow builder with predefined node types
-- **DSL Based workflow** : Defines the workflow structure by orchestrating native nodes in a Directed Graph. Executes mostly as a sequential DAG, with explicit support for loops to handle complex logic.
+- **DSL-Based workflow**: Defines the workflow structure by orchestrating native nodes in a Directed Graph. Executes mostly as a sequential DAG, with explicit support for loops to handle complex logic.
 - **Temporal Integration**: Reliable, fault-tolerant workflow execution
 - **Distributed Architecture**: Horizontally scalable with separate API and Worker components
 - **Multi-Tenancy**: Isolated tenant configurations
@@ -252,7 +252,7 @@
 ---
 
 ## Data Flow
-
+<img width="1714" height="1877" alt="dataflow" src="https://github.com/user-attachments/assets/339428cd-1e35-4c22-9e2e-796186075cce" />
 
 ---
 
