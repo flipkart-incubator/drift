@@ -251,7 +251,7 @@
                                         implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.drift.worker.bootstrap.WorkerApplication</mainClass>
+                                    <mainClass>com.flipkart.drift.worker.bootstrap.WorkerApplication</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

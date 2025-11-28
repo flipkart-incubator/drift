@@ -10,7 +10,7 @@ server:
 logging:
   level: INFO
   loggers:
-    com.drift: INFO
+    com.flipkart.drift: INFO
   appenders:
     - type: console
       threshold: ALL

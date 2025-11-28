@@ -1,0 +1,82 @@
+package com.flipkart.drift.worker.activities;
+
+import com.flipkart.drift.persistence.cache.NodeDefinitionCache;
+import com.flipkart.drift.persistence.cache.WorkflowCache;
+import com.flipkart.drift.worker.model.IssueWorkflowMapping;
+import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
+import com.flipkart.drift.commons.model.node.NodeDefinition;
+import com.flipkart.drift.commons.model.node.Workflow;
+import com.flipkart.drift.commons.model.node.WorkflowNode;
+import com.flipkart.drift.worker.service.IssueWorkflowMappingService;
+import com.google.inject.Inject;
+import io.temporal.activity.Activity;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+
+@Slf4j
+public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
+    public static final String WORKFLOW_ID_KEY = "workflowId";
+    public static final String VERSION_KEY = "version";
+    private final WorkflowCache workflowCache;
+    private final NodeDefinitionCache nodeDefinitionCache;
+    private final IssueWorkflowMappingService issueWorkflowMappingService;
+
+    @Inject
+    public FetchWorkflowActivityImpl(WorkflowCache workflowCache,
+                                     NodeDefinitionCache nodeDefinitionCache,
+                                     IssueWorkflowMappingService issueWorkflowMappingService) {
+        this.workflowCache = workflowCache;
+        this.nodeDefinitionCache = nodeDefinitionCache;
+        this.issueWorkflowMappingService = issueWorkflowMappingService;
+    }
+
+    @Override
+    public Workflow fetchWorkflow(String workflowId,
+                                  String version, String tenant) {
+        Workflow workflow =  workflowCache.get(workflowId, version,
+                tenant).get();
+
+        // enrich workflow with NodeDefinition data in states
+        workflow.getStates().forEach((k, v) -> {
+            NodeDefinition nodeDefinition = nodeDefinitionCache.get(v.getResourceId(), v.getResourceVersion(),
+                    tenant).get();
+            v.setNodeDefinition(nodeDefinition);
+        });
+        return workflow;
+    }
+
+
+   @Override
+   public Workflow fetchWorkflowBasedOnIssueId(String issueId, String tenant) {
+       IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
+        if (issueWorkflowMapping == null || !issueWorkflowMapping.hasValidConfig()) {
+            log.error("No workflow mapping found for issue id: {}", issueId);
+            throw Activity.wrap(new RuntimeException("No workflow mapping found for issue id: " + issueId));
+        }
+        return fetchWorkflow(issueWorkflowMapping.getWorkflowId(), issueWorkflowMapping.getDefaultVersion(), tenant);
+    }
+
+
+    @Override
+    public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request){
+        String issueId = request.getIssueDetail().getIssueId();
+        String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
+        IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
+        boolean isAEnabled = issueWorkflowMapping.isAbEnabled();
+        if (!isAEnabled) {
+            return fetchWorkflow(issueWorkflowMapping.getWorkflowId(), issueWorkflowMapping.getDefaultVersion(), tenant);
+        }
+        Map<String, String> abRequestMapping = issueWorkflowMappingService.getWorkflowMapping(request, issueWorkflowMapping);
+        if (abRequestMapping == null) {
+            throw Activity.wrap(new RuntimeException("No workflow mapping found for issue id when AB is enabled: " + issueId));
+        }
+        return fetchWorkflow(abRequestMapping.get(WORKFLOW_ID_KEY), abRequestMapping.get(VERSION_KEY), tenant);
+    }
+
+    @Override
+    public WorkflowNode fetchWorkflowNode(String issueId, String nodeName, String tenant) {
+        Workflow workflow = fetchWorkflowBasedOnIssueId(issueId, tenant);
+        return workflow.getStates().get(nodeName);
+    }
+}

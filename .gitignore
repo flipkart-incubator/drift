@@ -33,7 +33,6 @@ coverage.xml
 **/target
 
 # Test directories (excluded from repository)
-**/src/test/
 
 # ----- Logs -----
 *.log
@@ -52,5 +51,7 @@ logs/
 *.pem
 .cursor
 # ----- Internal implementation -----
-/worker-flipkart
 /scripts
+# ----- Internal implementation and documentation -----
+/worker-flipkart
+/docs

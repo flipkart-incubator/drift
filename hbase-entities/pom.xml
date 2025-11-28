@@ -12,7 +12,6 @@
     <artifactId>hbase-entities</artifactId>
     <version>1.0.0-RELEASE</version>
 
-
     <dependencies>
         <dependency>
             <groupId>org.apache.hbase</groupId>
