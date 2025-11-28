@@ -115,8 +115,8 @@
         │                                                        │
         ▼                                                        ▼
 ┌────────────────┐                                      ┌────────────────┐
-│    CONTEXT     │                                      │    CACHING     │
-│  PERSISTENCE   │                                      │                │
+│  CONTEXT + DSL │                                      │    CACHING     │
+│      STORE     │                                      │                │
 │  ┌──────────┐  │                                      │  ┌──────────┐  │
 │  │  HBase   │  │                                      │  │  Redis   │  │
 │  │  Cluster │  │                                      │  │ Sentinel │  │
@@ -130,6 +130,9 @@
 └────────────────┘                                      └────────────────┘
 
 ```
+
+<img width="904" height="760" alt="Screenshot 2025-11-28 at 11 19 49 PM" src="https://github.com/user-attachments/assets/1d0948c8-db63-4e4a-a853-f5de8b66f337" />
+
 
 ---
 
