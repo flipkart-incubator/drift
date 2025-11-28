@@ -22,9 +22,9 @@ public class DriftWorkerConfiguration extends Configuration {
     @NotNull
     private CacheMaxEntriesConfig cacheMaxEntriesConfig;
     @NotNull
-    private String hbaseConfigBucket;
+    private String hbasePropertiesPath;
     @NotNull
-    private String enumStoreBucket;
+    private String lookupPropertiesPath;
     @NotNull
     private String temporalFrontEnd;
     @NotNull
@@ -33,8 +33,6 @@ public class DriftWorkerConfiguration extends Configuration {
     private Long awaitTerminationTimeoutInSec;
     @NotNull
     private WorkerDynamicOptions workerDynamicOptions;
-    @NotNull
-    private ABConfiguration abConfiguration;
 
     private String temporalTaskQueue;
 
@@ -42,11 +40,10 @@ public class DriftWorkerConfiguration extends Configuration {
     private String hadoopUserName;
     private String hadoopLoginUser;
 
-    // Authentication configuration for AuthN service
+    // Authentication configuration
     @NotNull
-    private String authClientName;
+    private String authPropertiesPath;
+
     @NotNull
-    private String authClientUrl;
-    @NotNull
-    private String authClientSecret;
+    private String abPropertiesPath;
 }

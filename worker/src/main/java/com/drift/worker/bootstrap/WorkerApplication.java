@@ -4,9 +4,11 @@ import com.drift.persistence.bootstrap.DriftEntityModule;
 import com.drift.worker.util.AuthNTokenGenerator;
 import com.drift.worker.config.DriftWorkerConfiguration;
 import com.drift.worker.resources.DriftWorkerResource;
-import com.flipkart.kloud.authn.AuthTokenService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.netflix.config.ConcurrentCompositeConfiguration;
+import com.netflix.config.DynamicPropertyFactory;
+import com.netflix.config.DynamicURLConfiguration;
 import com.sun.net.httpserver.HttpServer;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -45,15 +47,13 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
     @Override
     public void run(DriftWorkerConfiguration driftWorkerConfiguration, Environment environment) {
         Scope metricsScope = setupMetrics(driftWorkerConfiguration.getPrometheusConfig());
+        ConcurrentCompositeConfiguration compositeConfiguration = getConcurrentCompositeConfiguration(driftWorkerConfiguration);
+        DynamicPropertyFactory.initWithConfigurationSource(compositeConfiguration);
         init(driftWorkerConfiguration, environment, metricsScope);
-        if (!AuthTokenService.getInstance().isInitialized()) {
-            AuthNTokenGenerator.INSTANCE.init(
-                driftWorkerConfiguration.getAuthClientUrl(),
-                driftWorkerConfiguration.getAuthClientName(),
-                driftWorkerConfiguration.getAuthClientSecret()
-            );
-        } else {
-            AuthNTokenGenerator.INSTANCE.initTokenService();
+
+        // Initialize authentication token generator with pluggable TokenProvider
+        if (!AuthNTokenGenerator.INSTANCE.isInitialized()) {
+            AuthNTokenGenerator.INSTANCE.init();
         }
     }
 
@@ -93,5 +93,21 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
         environment.lifecycle().manage(new TemporalWorkerManaged(injector, driftWorkerConfiguration, metricsScope));
         environment.lifecycle().manage(injector.getInstance(RedisCacheInvalidator.class));
         environment.jersey().register(injector.getInstance(DriftWorkerResource.class));
+    }
+
+    private static ConcurrentCompositeConfiguration getConcurrentCompositeConfiguration(DriftWorkerConfiguration configuration) {
+        DynamicURLConfiguration dynamicConfiguration = new DynamicURLConfiguration(
+                50000,
+                20000,
+                false,
+                configuration.getHbasePropertiesPath(),
+                configuration.getLookupPropertiesPath(),
+                configuration.getAuthPropertiesPath(),
+                configuration.getAbPropertiesPath()
+        );
+        ConcurrentCompositeConfiguration compositeConfiguration =
+                new ConcurrentCompositeConfiguration();
+        compositeConfiguration.addConfiguration(dynamicConfiguration);
+        return compositeConfiguration;
     }
 }

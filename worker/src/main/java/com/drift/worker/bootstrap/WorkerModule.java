@@ -6,18 +6,14 @@ import com.drift.persistence.bootstrap.StaticCacheRefreshConfig;
 import com.drift.persistence.dao.ConnectionType;
 import com.drift.persistence.dao.IConnectionProvider;
 import com.drift.worker.Utility.ABServiceInitializer;
-import com.drift.worker.Utility.ConfigClientUtil;
 import com.drift.worker.config.*;
 import com.drift.commons.exception.RedisStoreException;
 import com.drift.worker.stringResolver.MustacheStringResolver;
 import com.drift.worker.stringResolver.StringResolver;
 import com.drift.commons.utils.MetricsRegistry;
-import com.flipkart.kloud.config.ConfigClient;
-import com.flipkart.kloud.config.ConfigClientBuilder;
-import com.flipkart.kloud.config.DynamicBucket;
 import com.google.inject.*;
-import com.google.inject.name.Named;
 import com.google.inject.name.Names;
+import com.netflix.config.DynamicProperty;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -95,14 +91,10 @@ public class WorkerModule extends AbstractModule {
     }
 
     public static class ConnectionProviderWorker implements Provider<Connection> {
-        private final ConfigClient configClient;
-        private final String hbaseConfigBucket;
         private final DriftWorkerConfiguration driftWorkerConfiguration;
 
         @Inject
-        public ConnectionProviderWorker(ConfigClient configClient, DriftWorkerConfiguration driftWorkerConfiguration) {
-            this.configClient = configClient;
-            this.hbaseConfigBucket = driftWorkerConfiguration.getHbaseConfigBucket();
+        public ConnectionProviderWorker(DriftWorkerConfiguration driftWorkerConfiguration) {
             this.driftWorkerConfiguration = driftWorkerConfiguration;
         }
 
@@ -110,16 +102,14 @@ public class WorkerModule extends AbstractModule {
         public Connection get() {
             String zkQuorum;
             try {
-                DynamicBucket bucket = configClient.getDynamicBucket(hbaseConfigBucket);
-                zkQuorum = bucket.getString("zookeeperQuoramHotCalvin");
+                zkQuorum = DynamicProperty.getInstance("zookeeper.quorum.hot").getString();
             } catch (Exception e) {
-                log.error("Failed to fetch zookeeperQuoramHotCalvin from config bucket: {}", hbaseConfigBucket, e);
-                throw new RuntimeException("Failed to fetch zookeeperQuoramHotCalvin from config bucket", e);
+                throw new RuntimeException("Failed to fetch zookeeperQuorumHot from config", e);
             }
 
             if (StringUtils.isEmpty(zkQuorum)) {
-                log.error("ZOOKEEPER_QUORAM_WORKER not found in config service property");
-                throw new RuntimeException("ZOOKEEPER_QUORAM_WORKER not found in config service property");
+                log.error("ZOOKEEPER_QUORUM_WORKER not found in config service property");
+                throw new RuntimeException("ZOOKEEPER_QUORUM_WORKER not found in config service property");
             }
             Configuration configuration = HBaseConfiguration.create();
             configuration.set(HConstants.ZOOKEEPER_QUORUM, zkQuorum);
@@ -173,10 +163,6 @@ public class WorkerModule extends AbstractModule {
         bind(StringResolver.class).to(MustacheStringResolver.class);
         bind(Connection.class).annotatedWith(Names.named(ConnectionType.HOT.name())).toProvider(ConnectionProviderWorker.class).asEagerSingleton();
         bind(IConnectionProvider.class).to(ConnectionProvider.class).asEagerSingleton();
-        bind(ConfigClientUtil.class).asEagerSingleton();
-        if (driftWorkerConfiguration.getAbConfiguration().getIsABEnabled()) {
-            bind(ABServiceInitializer.class).asEagerSingleton();
-        }
     }
 
     @Provides
@@ -208,22 +194,16 @@ public class WorkerModule extends AbstractModule {
         return driftWorkerConfiguration.getCacheMaxEntriesConfig();
     }
 
+    /**
+     * Provide ABServiceInitializer as a singleton.
+     * ABServiceInitializer is completely agnostic of provider implementations.
+     * It uses SPI to discover and initialize the appropriate provider.
+     * Providers read their own configuration from DynamicProperty.
+     */
     @Provides
     @Singleton
-    public ConfigClient configClientProvider() {
-        return new ConfigClientBuilder().build();
-    }
-
-    @Provides
-    @Named("enumStoreBucket")
-    public String enumStoreBucket() {
-        return driftWorkerConfiguration.getEnumStoreBucket();
-    }
-
-    @Provides
-    @Singleton
-    public ABConfiguration abConfiguration() {
-        return driftWorkerConfiguration.getAbConfiguration();
+    public ABServiceInitializer provideABServiceInitializer() {
+        return new ABServiceInitializer();
     }
 
 }

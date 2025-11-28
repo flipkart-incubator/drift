@@ -30,15 +30,12 @@ import static com.drift.commons.utils.Constants.Workflow.ENUM_STORE;
 @Slf4j
 public class InstructionNodeActivityImpl extends BaseNodeActivityImpl<InstructionNode> implements InstructionNodeActivity {
 
-    private final StringResolver stringResolver;
-    private final static String variableMap = "00:variableMap";
     private final WorkflowConfigStoreService workflowConfigStoreService;
 
     @Inject
     public InstructionNodeActivityImpl(StringResolver stringResolver, WorkflowContextHBService workflowContextHBService,
                                        WorkflowConfigStoreService workflowConfigStoreService) {
         super(workflowContextHBService);
-        this.stringResolver = stringResolver;
         this.workflowConfigStoreService = workflowConfigStoreService;
     }
 

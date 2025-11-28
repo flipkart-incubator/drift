@@ -1,192 +1,202 @@
 package com.drift.worker.service;
 
-import com.drift.commons.exception.ApiException;
-import com.drift.worker.model.ABDetails;
+import com.drift.worker.Utility.ABServiceInitializer;
+import com.drift.worker.ab.ABTestingProvider;
+import com.drift.worker.ab.ABTestingProviderFactory;
 import com.drift.worker.model.IssueWorkflowMapping;
-import com.drift.worker.Utility.ABHelper;
-import com.flipkart.kloud.config.ConfigClient;
-import com.flipkart.kloud.config.DynamicBucket;
 import com.drift.commons.model.client.request.WorkflowStartRequest;
-import com.flipkart.kloud.config.error.ConfigServiceException;
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
+import com.google.inject.Singleton;
+import com.netflix.config.DynamicProperty;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.ws.rs.core.Response;
 import java.util.*;
 
+/**
+ * Service for mapping issue IDs to workflow configurations.
+ * Uses DynamicProperty for configuration and pluggable A/B testing.
+ */
 @Slf4j
-public record IssueWorkflowMappingService(ConfigClient configClient, ABHelper abHelper, String bucketName) {
-    private static final String ISSUE_WORKFLOW_MAPPING_KEY = "issue_workflow_mapping";
-    private static final String WORKFLOW_ID_KEY = "workflowId";
-    private static final String AB_ENABLED_KEY = "abEnabled";
-    private static final String AB_META_KEY = "abMeta";
-    private static final String DEFAULT_VERSION_KEY = "version";
-    private static final String EXPERIMENT_NAME_KEY = "experimentName";
-    private static final String PIVOT_TYPE_KEY = "pivotType";
-    private static final String VARIABLE_KEY = "variable";
-    private static final String CONTROL_KEY = "control";
-    private static final String TREATMENT_KEY = "treatment";
-    private static final String VERSION_KEY = "version";
-    public static final String PIVOT_TYPE_CUSTOMER_ID = "customerId";
-
+@Singleton
+public class IssueWorkflowMappingService {
+    private static final String WORKFLOW_KEY_FORMAT = "workflow.%s.key";
+    private static final String WORKFLOW_VERSION_FORMAT = "workflow.%s.version";
+    private static final String WORKFLOW_AB_ENABLED_FORMAT = "workflow.%s.ab.enabled";
+    private static final String WORKFLOW_AB_EXPERIMENT_FORMAT = "workflow.%s.ab.experimentName";
+    private static final String WORKFLOW_AB_PIVOT_TYPE_FORMAT = "workflow.%s.ab.pivotType";
+    private static final String WORKFLOW_AB_VARIABLE_FORMAT = "workflow.%s.ab.variable";
+    private static final String WORKFLOW_AB_CONTROL_VERSION_FORMAT = "workflow.%s.ab.control.version";
+    private static final String WORKFLOW_AB_TREATMENT_VERSION_FORMAT = "workflow.%s.ab.treatment.version";
+    
+    private final ABTestingProvider abTestingProvider;
+    
     @Inject
-    public IssueWorkflowMappingService(ConfigClient configClient, ABHelper abHelper, @Named("hbaseConfigBucket") String bucketName) {
-        this.configClient = configClient;
-        this.abHelper = abHelper;
-        this.bucketName = bucketName;
+    public IssueWorkflowMappingService(ABServiceInitializer abServiceInitializer) {
+        // Get the ABTestingProvider from the initialized ABServiceInitializer
+        this.abTestingProvider = abServiceInitializer.getProvider();
+        log.debug("Using ABTestingProvider from ABServiceInitializer: {}", 
+                 abTestingProvider.getClass().getSimpleName());
     }
 
-    public List<Map<String, Object>> getIssueWorkflowMapping() {
-        try {
-            DynamicBucket bucket = getBucket();
-            return extractIssueWorkflowMapping(bucket);
-        } catch (ConfigServiceException e) {
-            log.error("Failed to fetch issue workflow mapping from bucket: {}", bucketName, e);
-            throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to fetch issue workflow mapping");
-        }
-    }
-
+    /**
+     * Get workflow mapping for a specific issue ID.
+     * 
+     * @param issueId The issue ID
+     * @return IssueWorkflowMapping or null if not found
+     */
     public IssueWorkflowMapping getIssueWorkflowMappingForIssue(String issueId) {
         if (issueId == null || issueId.trim().isEmpty()) {
             log.debug("Issue ID is null or empty");
             return null;
         }
+        
         try {
-            List<Map<String, Object>> issueWorkflowMapping = getIssueWorkflowMapping();
-            if (issueWorkflowMapping.isEmpty()) {
-                return null;
-            }
-            Map<String, Object> mappingEntry = issueWorkflowMapping.get(0);
-            if (!mappingEntry.containsKey(issueId)) {
+            String workflowId = DynamicProperty.getInstance(String.format(WORKFLOW_KEY_FORMAT, issueId)).getString();
+            String defaultVersion = DynamicProperty.getInstance(String.format(WORKFLOW_VERSION_FORMAT, issueId)).getString();
+            
+            if (workflowId == null || workflowId.trim().isEmpty()) {
                 log.info("No workflow mapping found for issue ID: {}", issueId);
                 return null;
             }
-            Map<String, Object> issueConfig = (Map<String, Object>) mappingEntry.get(issueId);
-            return extractIssueWorkflowMappingFromConfig(issueId, issueConfig);
+            
+            // Check if AB testing is enabled
+            Boolean abEnabled = DynamicProperty.getInstance(String.format(WORKFLOW_AB_ENABLED_FORMAT, issueId)).getBoolean(false);
+            
+            IssueWorkflowMapping.IssueWorkflowMappingBuilder builder = IssueWorkflowMapping.builder()
+                    .workflowId(workflowId)
+                    .defaultVersion(defaultVersion)
+                    .abEnabled(abEnabled);
+            
+            // Load AB configuration if enabled
+            if (abEnabled) {
+                String experimentName = DynamicProperty.getInstance(String.format(WORKFLOW_AB_EXPERIMENT_FORMAT, issueId)).getString();
+                String pivotType = DynamicProperty.getInstance(String.format(WORKFLOW_AB_PIVOT_TYPE_FORMAT, issueId)).getString();
+                String variable = DynamicProperty.getInstance(String.format(WORKFLOW_AB_VARIABLE_FORMAT, issueId)).getString();
+                String controlVersion = DynamicProperty.getInstance(String.format(WORKFLOW_AB_CONTROL_VERSION_FORMAT, issueId)).getString();
+                String treatmentVersion = DynamicProperty.getInstance(String.format(WORKFLOW_AB_TREATMENT_VERSION_FORMAT, issueId)).getString();
+                
+                if (experimentName != null && pivotType != null && variable != null) {
+                    builder.experimentName(experimentName)
+                           .pivotType(pivotType)
+                           .variable(variable)
+                           .controlVersion(controlVersion != null ? controlVersion : defaultVersion)
+                           .treatmentVersion(treatmentVersion != null ? treatmentVersion : defaultVersion);
+                } else {
+                    log.warn("AB enabled for issue {} but missing required config (experimentName, pivotType, variable)", issueId);
+                    builder.abEnabled(false); // Disable AB if config is incomplete
+                }
+            }
+            
+            return builder.build();
         } catch (Exception e) {
             log.error("Error extracting workflow mapping for issue ID: {}", issueId, e);
             return null;
         }
     }
 
-
-    public Map<String, String> getABRequestMapping(WorkflowStartRequest workflowStartRequest, IssueWorkflowMapping mapping) {
-        String issueId = workflowStartRequest.getIssueDetail().getIssueId();
-        if (mapping == null || !mapping.hasValidABConfig()) {
-            log.debug("Invalid AB mapping for issue: {}, mapping: {}", issueId, mapping);
+    /**
+     * Get workflow and version for a workflow start request, considering A/B testing.
+     * 
+     * @param workflowStartRequest The workflow start request
+     * @param mapping The issue workflow mapping
+     * @return Map with workflowId and version, or null if mapping is invalid
+     */
+    public Map<String, String> getWorkflowMapping(WorkflowStartRequest workflowStartRequest, IssueWorkflowMapping mapping) {
+        if (mapping == null) {
+            log.debug("Mapping is null");
             return null;
         }
+        
+        String issueId = workflowStartRequest.getIssueDetail() != null ? 
+                        workflowStartRequest.getIssueDetail().getIssueId() : "unknown";
+        
         Map<String, String> result = new HashMap<>();
-        try {
-            String version;
-            boolean isInTreatment = false;
-            ABDetails abDetails = mapping.getAbMetaDetails();
-            if (abDetails.getPivotType().equals(PIVOT_TYPE_CUSTOMER_ID)) {
-                isInTreatment = abHelper.isCustomerInTreatment(
-                        workflowStartRequest.getCustomer().getCustomerId(),
-                        abDetails.getExperimentName(),
-                        abDetails.getVariable()
-                );
-            }
-            version = isInTreatment ? abDetails.getTreatment().getVersion() : abDetails.getControl().getVersion();
-            if (version == null) {
-                log.debug("Version is null for issue: {}, isInTreatment: {} , so picking default version", issueId, isInTreatment);
-                version = mapping.getDefaultVersion();
-            }
-            log.info("AB mapping for issue {}: workflowId={}, version={}, bucket={}",
-                    issueId, mapping.getWorkflowId(), version, (isInTreatment ? "TREATMENT" : "CONTROL"));
-            result.put(WORKFLOW_ID_KEY, mapping.getWorkflowId());
-            result.put(VERSION_KEY, version);
-
-        } catch (Exception e) {
-            log.error("Error getting AB request mapping for issue: {}", issueId, e);
-        }
+        result.put("workflowId", mapping.getWorkflowId());
+        
+        // Determine version based on A/B testing
+        String version = determineVersion(workflowStartRequest, mapping);
+        result.put("version", version);
+        
+        log.info("Workflow mapping for issue {}: workflowId={}, version={}", 
+                issueId, mapping.getWorkflowId(), version);
+        
         return result;
     }
-
-
-    private DynamicBucket getBucket() throws ConfigServiceException {
-        return configClient.getDynamicBucket(bucketName);
-    }
-
-    private List<Map<String, Object>> extractIssueWorkflowMapping(DynamicBucket bucket) {
-        if (!bucket.getKeys().containsKey(ISSUE_WORKFLOW_MAPPING_KEY)) {
-            log.warn("Issue workflow mapping key not found in bucket: {}", bucketName);
-            return new ArrayList<>();
+    
+    /**
+     * Determine which version to use based on A/B testing configuration.
+     * 
+     * @param workflowStartRequest The workflow start request
+     * @param mapping The issue workflow mapping
+     * @return The version to use
+     */
+    private String determineVersion(WorkflowStartRequest workflowStartRequest, IssueWorkflowMapping mapping) {
+        // If AB not enabled, return default version
+        if (!mapping.isAbEnabled()) {
+            return mapping.getDefaultVersion();
         }
-
+        
         try {
-            List<Map<String, Object>> result = (List<Map<String, Object>>) bucket.getKeys().get(ISSUE_WORKFLOW_MAPPING_KEY);
-            if (result == null) {
-                log.warn("Null result from bucket for key: {}", ISSUE_WORKFLOW_MAPPING_KEY);
-                return new ArrayList<>();
+            // Extract pivot value from request params based on pivot type
+            String pivotValue = extractPivotValue(workflowStartRequest, mapping.getPivotType());
+            
+            if (pivotValue == null) {
+                log.warn("Could not extract pivot value for type: {}, using default version", mapping.getPivotType());
+                return mapping.getDefaultVersion();
             }
-            return result;
+            
+            // Use AB testing provider to determine bucket
+            boolean isInTreatment = abTestingProvider.isInTreatment(
+                    pivotValue, 
+                    mapping.getExperimentName(), 
+                    mapping.getVariable()
+            );
+            
+            String version = isInTreatment ? mapping.getTreatmentVersion() : mapping.getControlVersion();
+            
+            // Fall back to default if version is null
+            if (version == null) {
+                log.warn("AB test returned null version, using default");
+                version = mapping.getDefaultVersion();
+            }
+            
+            log.info("AB Test result - pivot: {}, experiment: {}, variable: {}, bucket: {}, version: {}",
+                    pivotValue, mapping.getExperimentName(), mapping.getVariable(), 
+                    isInTreatment ? "TREATMENT" : "CONTROL", version);
+            
+            return version;
         } catch (Exception e) {
-            log.error("Failed to get AB workflow config from bucket: {}", bucketName, e);
-            return new ArrayList<>();
+            log.error("Error in A/B testing, falling back to default version", e);
+            return mapping.getDefaultVersion();
         }
     }
-
-    private IssueWorkflowMapping extractIssueWorkflowMappingFromConfig(String issueId, Map<String, Object> issueConfig) {
-        String workflowId = (String) issueConfig.get(WORKFLOW_ID_KEY);
-        String defaultVersion = (String) issueConfig.get(DEFAULT_VERSION_KEY);
-        Boolean abEnabled = (Boolean) issueConfig.get(AB_ENABLED_KEY);
-
-        ABDetails abMetaDetails = null;
-        if (abEnabled != null && abEnabled) {
-            abMetaDetails = extractABDetailsFromConfig(issueId, issueConfig);
-        }
-
-        return IssueWorkflowMapping.builder()
-                .workflowId(workflowId)
-                .defaultVersion(defaultVersion)
-                .abEnabled(abEnabled != null && abEnabled)
-                .abMetaDetails(abMetaDetails)
-                .build();
-    }
-
-    private ABDetails extractABDetailsFromConfig(String issueId, Map<String, Object> issueConfig) {
-        String workflowId = (String) issueConfig.get(WORKFLOW_ID_KEY);
-        Map<String, Object> abMeta = (Map<String, Object>) issueConfig.get(AB_META_KEY);
-        if (abMeta == null) {
+    
+    /**
+     * Extract pivot value from workflow request based on pivot type.
+     * 
+     * @param workflowStartRequest The workflow start request
+     * @param pivotType The type of pivot (e.g., "customerId", "orderId")
+     * @return The pivot value or null if not found
+     */
+    private String extractPivotValue(WorkflowStartRequest workflowStartRequest, String pivotType) {
+        if (pivotType == null) {
             return null;
         }
-
-        String experimentName = (String) abMeta.get(EXPERIMENT_NAME_KEY);
-        String pivotType = (String) abMeta.get(PIVOT_TYPE_KEY);
-        String variable = (String) abMeta.get(VARIABLE_KEY);
-
-        if (experimentName == null || pivotType == null || variable == null) {
-            log.error("Missing experiment name, pivot type, or variable for issue ID: {}", issueId);
-            return null;
+        
+        // Try to get from customer first (backward compatibility)
+        if ("customerId".equals(pivotType) && workflowStartRequest.getCustomer() != null) {
+            return workflowStartRequest.getCustomer().getCustomerId();
         }
-
-        Map<String, Object> controlMap = (Map<String, Object>) abMeta.get(CONTROL_KEY);
-        ABDetails.ABConfig control = null;
-        if (controlMap != null) {
-            control = ABDetails.ABConfig.builder()
-                    .version((String) controlMap.get(VERSION_KEY))
-                    .build();
+        
+        // Try to get from params (new standardized way)
+        if (workflowStartRequest.getParams() != null) {
+            Object value = workflowStartRequest.getParams().get(pivotType);
+            if (value != null) {
+                return value.toString();
+            }
         }
-
-        Map<String, Object> treatmentMap = (Map<String, Object>) abMeta.get(TREATMENT_KEY);
-        ABDetails.ABConfig treatment = null;
-        if (treatmentMap != null) {
-            treatment = ABDetails.ABConfig.builder()
-                    .version((String) treatmentMap.get(VERSION_KEY))
-                    .build();
-        }
-
-        return ABDetails.builder()
-                .issueId(issueId)
-                .workflowId(workflowId)
-                .experimentName(experimentName)
-                .pivotType(pivotType)
-                .variable(variable)
-                .control(control)
-                .treatment(treatment)
-                .build();
+        
+        log.debug("Pivot value not found for type: {}", pivotType);
+        return null;
     }
 }

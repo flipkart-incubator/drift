@@ -67,7 +67,7 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
         if (!isAEnabled) {
             return fetchWorkflow(issueWorkflowMapping.getWorkflowId(), issueWorkflowMapping.getDefaultVersion(), tenant);
         }
-        Map<String, String> abRequestMapping = issueWorkflowMappingService.getABRequestMapping(request, issueWorkflowMapping);
+        Map<String, String> abRequestMapping = issueWorkflowMappingService.getWorkflowMapping(request, issueWorkflowMapping);
         if (abRequestMapping == null) {
             throw Activity.wrap(new RuntimeException("No workflow mapping found for issue id when AB is enabled: " + issueId));
         }
