@@ -108,13 +108,13 @@
                 <configuration>
                     <release>17</release>
                     <includes>
-                        <include>com/drift/persistence/annotations/*.java</include>
-                        <include>com/drift/persistence/cache/*.java</include>
-                        <include>com/drift/persistence/dao/*.java</include>
-                        <include>com/drift/persistence/entity/*.java</include>
-                        <include>com/drift/persistence/exception/*.java</include>
-                        <include>com/drift/persistence/bootstrap/*.java</include>
-                        <include>com/drift/persistence/helper/*.java</include>
+                        <include>com/flipkart/drift/persistence/annotations/*.java</include>
+                        <include>com/flipkart/drift/persistence/cache/*.java</include>
+                        <include>com/flipkart/drift/persistence/dao/*.java</include>
+                        <include>com/flipkart/drift/persistence/entity/*.java</include>
+                        <include>com/flipkart/drift/persistence/exception/*.java</include>
+                        <include>com/flipkart/drift/persistence/bootstrap/*.java</include>
+                        <include>com/flipkart/drift/persistence/helper/*.java</include>
                     </includes>
                 </configuration>
             </plugin>
