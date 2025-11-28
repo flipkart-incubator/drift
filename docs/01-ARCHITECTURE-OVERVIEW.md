@@ -12,16 +12,20 @@
 
 ## Introduction
 
-**Drift** is a Temporal-powered, low-code visual workflow orchestration platform that enables users to design, deploy, and execute complex workflows using a node-based system. The platform abstracts the complexity of workflow management and provides a flexible, extensible architecture for building business process automation.
+**Drift** is a Temporal-powered, low-code visual workflow orchestration platform that enables users to design, deploy, and execute workflows using [native nodes](). The platform abstracts the complexity of workflow management and provides a flexible, extensible architecture for building business process automation.
 
 ### Key Features
-- **Low-Code/No-Code**: Visual workflow builder with predefined node types
-- **Temporal Integration**: Leverages Temporal.io for reliable, fault-tolerant workflow execution
+- **Low-Code/No-Code**: On-the-fly workflow builder with predefined node types
+- **DSL Based workflow** : Defines the workflow structure by orchestrating native nodes in a Directed Graph. Executes mostly as a sequential DAG, with explicit support for loops to handle complex logic.
+- **Temporal Integration**: Reliable, fault-tolerant workflow execution
 - **Distributed Architecture**: Horizontally scalable with separate API and Worker components
-- **Multi-Tenancy**: Supports multiple tenants/clients with isolated configurations
-- **Extensible Node System**: Pluggable architecture for custom node types
-- **State Persistence**: Durable workflow state management using HBase
-- **Real-time Caching**: Redis-based caching for workflow definitions and node configurations
+- **Multi-Tenancy**: Isolated tenant configurations
+- **Extensible Node System**: Pluggable custom node types
+- **Context Offloading**: Persists context in HBase (more connectors planned) to bypass the Temporal backend, maximizing throughput by keeping data and control plane decoupled.
+- **Workflow Versioning**: Version-controlled workflows with hot deployments, zero downtime updates and rollbacks
+- **Real-time Visibility**: Live workflow execution tracking and monitoring
+- **Widgetized Responses**: UI-ready responses for human-in-the-loop workflows and systematic resumes
+- **Generic Contracts**: Standardized contracts for seamless workflow interactions
 
 ---
 
@@ -30,60 +34,59 @@
 ### High-Level Architecture Diagram
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                           CLIENT APPLICATIONS                           │
-│                    (Frontend, Mobile Apps, APIs)                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                           CLIENT APPLICATIONS                      │
+│                             (Frontend, APIs)                       │
+└────────────────────────────────────────────────────────────────────┘
                                     │
-                                    │ REST API (HTTP/JSON)
+                                    │ REST API (HTTP)
                                     ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                              API LAYER                                  │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │              Drift API Service (Dropwizard)                      │  │
-│  │  ┌────────────┐  ┌─────────────┐  ┌──────────────────┐          │  │
-│  │  │ Workflow   │  │    Node     │  │    Workflow      │          │  │
-│  │  │ Resource   │  │ Definition  │  │   Definition     │          │  │
-│  │  │ (REST)     │  │  Resource   │  │    Resource      │          │  │
-│  │  └────────────┘  └─────────────┘  └──────────────────┘          │  │
-│  │         │                │                  │                     │  │
-│  │         └────────────────┴──────────────────┘                     │  │
-│  │                          │                                         │  │
-│  │                 ┌────────▼────────┐                               │  │
-│  │                 │ Temporal Service│                               │  │
-│  │                 │  (Client SDK)   │                               │  │
-│  │                 └────────┬────────┘                               │  │
-│  └──────────────────────────┼──────────────────────────────────────┘  │
-└───────────────────────────┼──┼───────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                              API LAYER                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │              Drift API Service (Dropwizard)                   │  │
+│  │  ┌────────────┐  ┌─────────────┐  ┌──────────────────┐        │  │
+│  │  │ Workflow   │  │    Node     │  │    Workflow      │        │  │
+│  │  │ Resource   │  │ Definition  │  │   Definition     │        │  │
+│  │  │ (REST)     │  │  Resource   │  │    Resource      │        │  │
+│  │  └────────────┘  └─────────────┘  └──────────────────┘        │  │
+│  │         │                │                  │                 │  │
+│  │         └────────────────┴──────────────────┘                 │  │
+│  │                          │                                    │  │
+│  │                 ┌────────▼────────┐                           │  │
+│  │                 │ Temporal Service│                           │  │
+│  │                 │  (Java SDK)     │                           │  │
+│  │                 └────────┬────────┘                           │  │
+│  └──────────────────────────┼────────────────────────────────────┘  │
+└───────────────────────────┼──┼──────────────────────────────────────┘
                             │  │
                             │  │ Temporal gRPC Protocol
                             │  │
-┌───────────────────────────▼──▼───────────────────────────────────────┐
-│                      TEMPORAL CLUSTER                                 │
+┌───────────────────────────▼──▼──────────────────────────────────────┐
+│                      TEMPORAL CLUSTER                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐                 │
 │  │  Frontend   │  │   History    │  │   Matching  │                 │
 │  │   Service   │◄─┤   Service    │◄─┤   Service   │                 │
 │  └─────────────┘  └──────────────┘  └─────────────┘                 │
-│         │                  │                                          │
-│         │         ┌────────▼────────┐                                │
-│         │         │  Persistence    │                                │
-│         │         │  (Cassandra/    │                                │
-│         │         │   PostgreSQL)   │                                │
-│         │         └─────────────────┘                                │
+│         │                  │                                        │
+│         │         ┌────────▼────────┐                               │
+│         │         │  Persistence    │                               │
+│         │         │     (TiDB)      │                               │
+│         │         └─────────────────┘                               │
 └─────────┼───────────────────────────────────────────────────────────┘
           │
           │ Task Queue
           │
 ┌─────────▼──────────────────────────────────────────────────────────────┐
-│                          WORKER LAYER                                    │
-│  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │         Drift Worker Service (Dropwizard + Temporal Worker)        │ │
-│  │  ┌──────────────┐                                                  │ │
-│  │  │   Temporal   │                                                  │ │
-│  │  │    Worker    │                                                  │ │
-│  │  │  (Polling)   │                                                  │ │
-│  │  └──────┬───────┘                                                  │ │
-│  │         │                                                          │ │
+│                          WORKER LAYER                                  │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │         Drift Worker Service (Dropwizard + Temporal Worker)       │ │
+│  │  ┌──────────────┐                                                 │ │
+│  │  │   Temporal   │                                                 │ │
+│  │  │    Worker    │                                                 │ │
+│  │  │  (Polling)   │                                                 │ │
+│  │  └──────┬───────┘                                                 │ │
+│  │         │                                                         │ │
 │  │  ┌──────▼──────────────────────────────────────────────────────┐  │ │
 │  │  │               Workflow Execution Engine                     │  │ │
 │  │  │  ┌────────────────┐  ┌────────────────┐                     │  │ │
@@ -91,41 +94,41 @@
 │  │  │  │   Workflow     │◄─┤  Executor      │                     │  │ │
 │  │  │  │   Impl         │  │                │                     │  │ │
 │  │  │  └────────────────┘  └───────┬────────┘                     │  │ │
-│  │  │                              │                               │  │ │
+│  │  │                              │                              │  │ │
 │  │  │         ┌────────────────────┴────────────────────┐         │  │ │
-│  │  │         │                                          │         │  │ │
-│  │  │  ┌──────▼──────┐  ┌──────────────┐  ┌────────────▼─────┐   │  │ │
-│  │  │  │   Activity  │  │   Activity   │  │    Activity      │   │  │ │
-│  │  │  │  HTTP Node  │  │ Groovy Node  │  │  Branch Node     │   │  │ │
-│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘   │  │ │
-│  │  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐   │  │ │
-│  │  │  │  Activity   │  │   Activity   │  │    Activity      │   │  │ │
-│  │  │  │Instruction  │  │  Processor   │  │  Success/Failure │   │  │ │
-│  │  │  │    Node     │  │    Node      │  │      Node        │   │  │ │
-│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘   │  │ │
-│  │  └──────────────────────────────────────────────────────────┘  │ │
-│  └────────────────────────────────────────────────────────────────┘ │
+│  │  │         │                                         │         │  │ │
+│  │  │  ┌──────▼──────┐  ┌──────────────┐  ┌─────────────▼────┐    │  │ │
+│  │  │  │   Activity  │  │   Activity   │  │    Activity      │    │  │ │
+│  │  │  │  HTTP Node  │  │ Groovy Node  │  │  Branch Node     │    │  │ │
+│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘    │  │ │
+│  │  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐    │  │ │
+│  │  │  │  Activity   │  │   Activity   │  │    Activity      │    │  │ │
+│  │  │  │Instruction  │  │  Processor   │  │  Success/Failure │    │  │ │
+│  │  │  │    Node     │  │    Node      │  │      Node        │    │  │ │
+│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘    │  │ │
+│  │  └─────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │
-        ┌───────────────────────────┴───────────────────────────┐
+        ┌───────────────────────────┴────────────────────────────┐
         │                                                        │
         ▼                                                        ▼
 ┌────────────────┐                                      ┌────────────────┐
-│  PERSISTENCE   │                                      │    CACHING     │
-│                │                                      │                │
+│    CONTEXT     │                                      │    CACHING     │
+│  PERSISTENCE   │                                      │                │
 │  ┌──────────┐  │                                      │  ┌──────────┐  │
 │  │  HBase   │  │                                      │  │  Redis   │  │
 │  │  Cluster │  │                                      │  │ Sentinel │  │
 │  │          │  │                                      │  │  Cluster │  │
 │  │ ┌──────┐ │  │                                      │  └──────────┘  │
-│  │ │Nodes │ │  │                                      │                │
+│  │ │      │ │  │                                      │                │
 │  │ │      │ │  │                                      │  • Workflow    │
-│  │ │WorkFL│ │  │                                      │    Definitions │
-│  │ │Context│ │  │                                      │  • Node Defs   │
-│  │ └──────┘ │  │                                      │  • Enum Config │
-│  └──────────┘  │                                      │  • AB Testing  │
+│  │ │      │ │  │                                      │    Definitions │
+│  │ │      │ │  │                                      │  • Node Defs   │
+│  │ └──────┘ │  │                                      │                │
 └────────────────┘                                      └────────────────┘
+
 ```
 
 ---
@@ -138,7 +141,6 @@
 
 **Responsibilities**:
 - Expose REST endpoints for workflow lifecycle operations
-- Validate incoming requests
 - Communicate with Temporal cluster to start/resume/terminate workflows
 - Query workflow state and execution status
 - Manage workflow and node definitions (CRUD operations)
@@ -150,9 +152,8 @@
 - `NodeDefinitionResource`: CRUD operations for node definitions
 - `WorkflowDefinitionResource`: CRUD operations for workflow definitions
 - `TemporalService`: Service layer for Temporal interactions
-- `RequestFilter`: Request filtering and context extraction
 
-**Technology**: Dropwizard 2.0.27, Jersey (JAX-RS), Google Guice
+**Technology**: Dropwizard 2.0.27, Temporal, Redis
 
 ---
 
@@ -165,9 +166,6 @@
 - Execute workflow logic (GenericWorkflowImpl)
 - Execute node activities (HTTP, Groovy, Branch, etc.)
 - Manage workflow state and context
-- Interact with HBase for workflow persistence
-- Evaluate Groovy scripts for dynamic behavior
-- Execute HTTP calls to external services
 - Handle workflow errors and retries
 
 **Key Classes**:
@@ -176,11 +174,8 @@
 - `WorkflowNodeExecutor`: Orchestrates node execution
 - `TemporalWorkerManaged`: Manages Temporal worker lifecycle
 - `*NodeActivityImpl`: Activity implementations for each node type
-- `WorkflowContextHBService`: HBase persistence service
-- `GroovyTranslator`: Dynamic script evaluation engine
-- `HttpExecutor`: HTTP call execution
 
-**Technology**: Dropwizard 2.0.27, Temporal SDK, Google Guice, Groovy 2.4.13
+**Technology**: Dropwizard 2.0.27, Temporal SDK, Hbase, Redis
 
 ---
 
@@ -209,10 +204,6 @@
   - `ProcessorNode`: Data processing node
   - `SuccessNode`: Workflow success termination
   - `FailureNode`: Workflow failure termination
-- **Enums**:
-  - `NodeType`: Types of nodes (HTTP, GROOVY, BRANCH, etc.)
-  - `WorkflowStatus`: Workflow execution states
-  - `HttpMethod`: HTTP methods (GET, POST, PUT, DELETE)
 
 ---
 
@@ -247,41 +238,6 @@
 
 ---
 
-## Technology Stack
-
-### Backend Framework
-- **Dropwizard 2.0.27**: RESTful web services framework
-- **Jersey (JAX-RS)**: REST API implementation
-- **Jackson**: JSON serialization/deserialization
-- **Google Guice 7.0.0**: Dependency injection
-
-### Workflow Orchestration
-- **Temporal.io**: Distributed workflow engine
-  - Workflow SDK for Java
-  - Activity SDK
-  - Worker SDK
-- **Temporal Server**: External temporal cluster (self-hosted or cloud)
-
-### Data Storage
-- **HBase**: NoSQL database for workflow and node definitions
-  - Column-oriented, distributed storage
-  - HBase Object Mapper for ORM
-- **Apache Hadoop**: Underlying distributed filesystem for HBase
-
-### Caching
-- **Redis Sentinel**: Distributed caching
-  - Workflow definition caching
-  - Node definition caching
-  - Enum/configuration store
-  - Session management
-
-### Scripting & Execution
-- **Groovy 2.4.13**: Dynamic script evaluation
-  - Script-based transformations
-  - Conditional logic evaluation
-  - Dynamic value resolution
-- **OkHttp/Retrofit**: HTTP client for external API calls
-
 ### Monitoring & Metrics
 - **Prometheus**: Metrics collection
 - **Micrometer**: Metrics instrumentation
@@ -297,187 +253,6 @@
 
 ## Data Flow
 
-### Workflow Execution Flow
-
-```
-┌─────────────┐
-│   Client    │
-│ Application │
-└──────┬──────┘
-       │
-       │ 1. POST /v3/workflow/start
-       │    {workflowId, issueDetail, context, ...}
-       ▼
-┌──────────────────┐
-│   API Service    │
-│                  │
-│ WorkflowResource │
-└──────┬───────────┘
-       │
-       │ 2. Validate Request
-       ▼
-┌──────────────────┐
-│ TemporalService  │
-│                  │
-│ • Generate WF ID │
-│ • Start WF       │
-└──────┬───────────┘
-       │
-       │ 3. Start Workflow Execution
-       │    WorkflowClient.start(GenericWorkflow)
-       ▼
-┌──────────────────────┐
-│  Temporal Cluster    │
-│                      │
-│ • Persist WF state   │
-│ • Add to task queue  │
-└──────┬───────────────┘
-       │
-       │ 4. Poll Task Queue
-       ▼
-┌──────────────────────────────┐
-│      Worker Service          │
-│                              │
-│  Temporal Worker (Polling)   │
-└──────┬───────────────────────┘
-       │
-       │ 5. Receive Workflow Task
-       ▼
-┌───────────────────────────────┐
-│   GenericWorkflowImpl         │
-│                               │
-│  startWorkflow()              │
-│    ├─ Initialize state        │
-│    ├─ Fetch workflow DSL      │
-│    └─ Execute nodes           │
-└──────┬────────────────────────┘
-       │
-       │ 6. Fetch Workflow Definition
-       │    FetchWorkflowActivity.fetchWorkflowBasedOnRequest()
-       ▼
-┌────────────────────┐
-│  Cache Check       │
-│  (Redis)           │
-└──────┬─────────────┘
-       │
-       │ Cache Miss?
-       ▼
-┌────────────────────┐
-│  HBase Lookup      │
-│  WorkflowHB table  │
-└──────┬─────────────┘
-       │
-       │ 7. Return Workflow DSL
-       │    {startNode, states, ...}
-       ▼
-┌───────────────────────────────┐
-│  WorkflowNodeExecutor         │
-│                               │
-│  executeNode(currentNode)     │
-└──────┬────────────────────────┘
-       │
-       │ 8. Execute Node Activity
-       ▼
-┌────────────────────────────────────────┐
-│  Node Activity Execution               │
-│                                        │
-│  Based on Node Type:                   │
-│  ┌──────────────────────────────────┐  │
-│  │ HTTP Node:                       │  │
-│  │  • Resolve URL/headers/body      │  │
-│  │  • Execute HTTP call             │  │
-│  │  • Transform response            │  │
-│  └──────────────────────────────────┘  │
-│  ┌──────────────────────────────────┐  │
-│  │ Groovy Node:                     │  │
-│  │  • Load script                   │  │
-│  │  • Evaluate with context         │  │
-│  │  • Return result                 │  │
-│  └──────────────────────────────────┘  │
-│  ┌──────────────────────────────────┐  │
-│  │ Branch Node:                     │  │
-│  │  • Evaluate conditions           │  │
-│  │  • Determine next node           │  │
-│  └──────────────────────────────────┘  │
-│  ┌──────────────────────────────────┐  │
-│  │ Instruction Node:                │  │
-│  │  • Return UI instructions        │  │
-│  │  • Wait for user input           │  │
-│  └──────────────────────────────────┘  │
-└─────────┬──────────────────────────────┘
-          │
-          │ 9. Update Workflow Context
-          ▼
-┌────────────────────────┐
-│  WorkflowContextHBService │
-│  • Persist context to HBase│
-└────────┬───────────────┘
-         │
-         │ 10. Determine Next Node
-         ▼
-┌────────────────────────┐
-│  WorkflowNodeExecutor  │
-│  • Get nextNode ID     │
-│  • Loop until null     │
-└────────┬───────────────┘
-         │
-         │ 11. Workflow Complete?
-         │     (nextNode == null)
-         ▼
-┌────────────────────────┐
-│  Success/Failure Node  │
-│  • Mark WF Complete    │
-│  • Set final status    │
-└────────┬───────────────┘
-         │
-         │ 12. Return to Temporal
-         ▼
-┌────────────────────────┐
-│  Temporal Cluster      │
-│  • Mark WF Complete    │
-│  • Persist final state │
-└────────┬───────────────┘
-         │
-         │ 13. Query Workflow State
-         │     GET /v3/workflow/{workflowId}
-         ▼
-┌────────────────────────┐
-│   Client Application   │
-│   • Receive final state│
-└────────────────────────┘
-```
-
----
-
-### Workflow Resume Flow
-
-```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │ 1. PUT /v3/workflow/resume/{workflowId}
-       │    {userInput, selectedOption, ...}
-       ▼
-┌──────────────────┐
-│   API Service    │
-└──────┬───────────┘
-       │ 2. Signal Workflow
-       ▼
-┌──────────────────┐
-│ Temporal Cluster │
-└──────┬───────────┘
-       │ 3. Wake Workflow
-       ▼
-┌──────────────────────┐
-│ GenericWorkflowImpl  │
-│ resumeWorkflow()     │
-└──────┬───────────────┘
-       │ 4. Resume from current node
-       ▼
-┌──────────────────────┐
-│ Continue Execution   │
-└──────────────────────┘
-```
 
 ---
 
@@ -486,94 +261,57 @@
 ### Kubernetes Deployment
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                      Kubernetes Cluster                         │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    Namespace: drift                      │  │
-│  │                                                          │  │
-│  │  ┌────────────────┐        ┌────────────────┐          │  │
-│  │  │  API Pods      │        │  Worker Pods   │          │  │
-│  │  │  (Replicas: 3) │        │  (Replicas: 5) │          │  │
-│  │  │                │        │                │          │  │
-│  │  │ • Port: 8000   │        │ • Port: 7200   │          │  │
-│  │  │ • Port: 8001   │        │ • Port: 7201   │          │  │
-│  │  │   (admin)      │        │   (admin)      │          │  │
-│  │  │ • Port: 9090   │        │ • Port: 9090   │          │  │
-│  │  │   (metrics)    │        │   (metrics)    │          │  │
-│  │  └────────┬───────┘        └────────┬───────┘          │  │
-│  │           │                         │                   │  │
-│  │  ┌────────▼───────┐       ┌────────▼───────┐          │  │
-│  │  │   Service:     │       │   Service:     │          │  │
-│  │  │   drift-api    │       │ drift-worker   │          │  │
-│  │  │   (LoadBalancer)│      │  (ClusterIP)   │          │  │
-│  │  └────────────────┘       └────────────────┘          │  │
-│  │                                                         │  │
-│  │  ┌──────────────────────────────────────────┐         │  │
-│  │  │           ConfigMap / Secrets            │         │  │
-│  │  │  • Environment variables                 │         │  │
-│  │  │  • Redis config                          │         │  │
-│  │  │  • Temporal connection                   │         │  │
-│  │  │  • HBase config                          │         │  │
-│  │  └──────────────────────────────────────────┘         │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                      Kubernetes Cluster              │
+│                                                      │
+│  ┌────────────────────────────────────────────────┐  │
+│  │                    Namespace: drift            │  │
+│  │                                                │  │
+│  │  ┌────────────────┐        ┌────────────────┐  │  │
+│  │  │  API Pods      │        │  Worker Pods   │  │  │
+│  │  │                │        │                │  │  │
+│  │  │                │        │                │  │  │
+│  │  │ • Port: 8000   │        │ • Port: 7200   │  │  │
+│  │  │ • Port: 8001   │        │ • Port: 7201   │  │  │
+│  │  │   (admin)      │        │   (admin)      │  │  │
+│  │  │ • Port: 9090   │        │ • Port: 9090   │  │  │
+│  │  │   (metrics)    │        │   (metrics)    │  │  │
+│  │  └────────┬───────┘        └────────┬───────┘  │  │
+│  │           │                         │          │  │
+│  │  ┌────────▼───────┐       ┌────────▼───────┐   │  │
+│  │  │   Service:     │       │   Service:     │   │  │
+│  │  │   drift-api    │       │ drift-worker   │   │  │
+│  │  │   (LoadBalancer)│      │  (ClusterIP)   │   │  │
+│  │  └────────────────┘       └────────────────┘   │  │
+│  │                                                │  │
+│  │  ┌──────────────────────────────────────────┐  │  │
+│  │  │           ConfigMap / Secrets            │  │  │
+│  │  │  • Environment variables                 │  │  │
+│  │  │  • Redis config                          │  │  │
+│  │  │  • Temporal connection                   │  │  │
+│  │  │  • HBase config                          │  │  │
+│  │  └──────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────┘
 ```
 
 ### External Dependencies
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                    External Infrastructure                      │
-│                                                                 │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐ │
-│  │ Temporal Cluster │  │  Redis Sentinel  │  │ HBase Cluster│ │
-│  │  (Self-hosted)   │  │    (3 nodes)     │  │  (5 nodes)   │ │
-│  │                  │  │                  │  │              │ │
-│  │ • Frontend       │  │ • Master         │  │ • Master     │ │
-│  │ • History        │  │ • Sentinels      │  │ • RegionSrvs │ │
-│  │ • Matching       │  │ • Replicas       │  │ • ZooKeeper  │ │
-│  │ • Worker         │  │                  │  │              │ │
-│  └──────────────────┘  └──────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+│                    External Infrastructure                     │
+│                                                                │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐  │
+│  │ Temporal Cluster │  │  Redis Sentinel  │  │ HBase Cluster│  │
+│  │  (Self-hosted)   │  │    (3 nodes)     │  │              │  │
+│  │                  │  │                  │  │              │  │
+│  │ • Frontend       │  │ • Master         │  │ • Master     │  │
+│  │ • History        │  │ • Sentinels      │  │ • RegionSrvs │  │
+│  │ • Matching       │  │ • Replicas       │  │ • ZooKeeper  │  │
+│  │ • Worker         │  │                  │  │              │  │
+│  └──────────────────┘  └──────────────────┘  └──────────────┘  │
+└────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Scalability & High Availability
-
-### Horizontal Scaling
-- **API Service**: Scale based on HTTP request rate
-- **Worker Service**: Scale based on workflow task queue depth
-- **Temporal Cluster**: Scale history and matching services independently
-- **HBase**: Add region servers for increased capacity
-- **Redis**: Use Redis Cluster for horizontal scaling
-
-### Fault Tolerance
-- **Temporal**: Automatic retry and compensation
-- **Worker Pods**: Kubernetes automatically restarts failed pods
-- **HBase**: Replication factor ensures data durability
-- **Redis Sentinel**: Automatic failover for master node
-
----
-
-## Security Considerations
-
-### Authentication & Authorization
-- JWT-based authentication (if implemented)
-- Client ID/Secret validation via RequestFilter
-- Multi-tenancy support with tenant isolation
-
-### Data Security
-- Encryption keys for sensitive data (configurable)
-- Environment variable-based secrets management
-- Redis password authentication
-- HBase access control via Hadoop security
-
-### Network Security
-- TLS/SSL for all external communications
-- Internal service-to-service mTLS (optional)
-- Network policies in Kubernetes for pod isolation
 
 ---
 
