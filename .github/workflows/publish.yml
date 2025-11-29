@@ -26,10 +26,11 @@ jobs:
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        distribution: 'temurin'
+        distribution: 'adopt'
+        cache: 'maven'   # Enable Maven caching
         server-id: clojars # Value of the distributionManagement/repository/id field of the pom.xml
-        server-username: ${{ secrets.CLOJARS_USERNAME }} # env variable for username
-        server-password: "something" # env variable for password / deploy token
+        server-username: CLOJARS_USERNAME  # env variable for username
+        server-password: CLOJARS_TOKEN # env variable for password / deploy token
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Print settings.xml
