@@ -31,17 +31,25 @@ jobs:
         # server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         # settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    # # Add step to read version and check if SNAPSHOT
-    # - name: Check version for workflow_dispatch
-    #   if: github.event_name == 'workflow_dispatch'
-    #   run: |
-    #     VERSION=$(grep "def gJEXVersion = " build.gradle | cut -d"'" -f2)
-    #     if [[ ! $VERSION =~ .*SNAPSHOT$ ]]; then
-    #       echo "Error: Manual workflow runs are only allowed for SNAPSHOT versions"
-    #       echo "Current version: $VERSION"
-    #       exit 1
-    #     fi
-    #     echo "Version $VERSION is a SNAPSHOT version, proceeding with publish"
+    - name: Ensure SNAPSHOT revision for workflow_dispatch
+      # if: github.event_name == 'workflow_dispatch'
+      run: |
+        REVISION=$(python3 <<'PY'
+        import xml.etree.ElementTree as ET
+        tree = ET.parse("pom.xml")
+        ns = {"mvn": "http://maven.apache.org/POM/4.0.0"}
+        revision = tree.findtext("mvn:properties/mvn:revision", namespaces=ns)
+        if revision is None:
+            raise SystemExit("Unable to locate <revision> in pom.xml")
+        print(revision.strip())
+        PY
+        )
+        echo "Detected revision: ${REVISION}"
+        if [[ "${REVISION}" != *SNAPSHOT ]]; then
+          echo "Error: workflow_dispatch runs are allowed only for SNAPSHOT revisions."
+          # exit 1
+        fi
+        echo "Revision ${REVISION} is a SNAPSHOT; continuing."
 
     - name: Build with Maven
       run: mvn -B package 
