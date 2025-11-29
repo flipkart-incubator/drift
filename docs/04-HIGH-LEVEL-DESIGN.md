@@ -11,6 +11,8 @@
 
 <img width="1033" height="771" alt="Screenshot 2025-11-29 at 1 23 51 PM" src="https://github.com/user-attachments/assets/927dcfcf-db0c-4df9-b4d1-1524daa61d90" />
 
+> **Note**: The above design illustrates the sync mode of workflow interaction. Drift also supports an async mode, in which steps 2.b and 2.g are skipped, and the client is notified via webhook triggered at I/O or terminal nodes.
+
 ---
 ## Core Components
 
