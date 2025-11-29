@@ -1,13 +1,11 @@
 # This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#apache-maven-with-a-settings-path
 
-name: Maven Package
+name: Maven CI
 
 on:
-  workflow_dispatch:
-  push: 
-    tags:
-      - v*
+ push:
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -15,9 +13,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # permissions:
-    #   contents: read
-    #   packages: write
 
     steps:
     - uses: actions/checkout@v4
@@ -31,31 +26,6 @@ jobs:
         # server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         # settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - name: Ensure SNAPSHOT revision for workflow_dispatch
-      # if: github.event_name == 'workflow_dispatch'
-      run: |
-        REVISION=$(python3 <<'PY'
-        import xml.etree.ElementTree as ET
-        tree = ET.parse("pom.xml")
-        ns = {"mvn": "http://maven.apache.org/POM/4.0.0"}
-        revision = tree.findtext("mvn:properties/mvn:revision", namespaces=ns)
-        if revision is None:
-            raise SystemExit("Unable to locate <revision> in pom.xml")
-        print(revision.strip())
-        PY
-        )
-        echo "Detected revision: ${REVISION}"
-        if [[ "${REVISION}" != *SNAPSHOT ]]; then
-          echo "Error: workflow_dispatch runs are allowed only for SNAPSHOT revisions."
-          # exit 1
-        fi
-        echo "Revision ${REVISION} is a SNAPSHOT; continuing."
-
     - name: Build with Maven
       run: mvn -B package 
 
-    # - name: Publish to GitHub Packages Apache Maven
-    #   run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
-    #   env:
-    #     CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
-    #     CLOJARS_PASSWORD: ${{ secrets.CLOJARS_TOKEN }}
