@@ -8,8 +8,8 @@ on:
   push: 
     tags:
       - v*
-  pull_request:
-    branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
     
 jobs:
   publish:
@@ -36,7 +36,7 @@ jobs:
       run: cat $GITHUB_WORKSPACE/settings.xml
 
     - name: Ensure SNAPSHOT revision for workflow_dispatch
-      # if: github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'workflow_dispatch'
       run: |
         REVISION=$(python3 <<'PY'
         import xml.etree.ElementTree as ET
