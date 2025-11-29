@@ -3,15 +3,16 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>com.flipkart</groupId>
-        <artifactId>drift</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <groupId>com.flipkart.drift</groupId>
+        <artifactId>drift-parent</artifactId>
+        <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+    
     <groupId>com.flipkart.drift</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>hbase-entities</artifactId>
-    <version>1.0.0-RELEASE</version>
+    <version>${revision}</version>
 
     <dependencies>
         <dependency>
@@ -52,6 +53,10 @@
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hbase</groupId>
+                    <artifactId>hbase-client</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -85,7 +90,7 @@
         <dependency>
             <groupId>com.flipkart.drift</groupId>
             <artifactId>commons</artifactId>
-            <version>1.0.0-RELEASE</version>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
