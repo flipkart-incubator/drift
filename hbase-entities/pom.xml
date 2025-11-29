@@ -86,7 +86,7 @@
         <dependency>
             <groupId>com.flipkart.drift</groupId>
             <artifactId>commons</artifactId>
-            <version>1.0.0-RELEASE</version>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
