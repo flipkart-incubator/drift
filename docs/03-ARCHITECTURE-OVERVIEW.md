@@ -38,7 +38,7 @@
 
 **ElasticSearch** — Visibility store for Temporal.
 
-**HBase** — Workflow context and DSL storage; more connectors to follow.
+**HBase** — Workflow context, workflow and node spec storage; more connectors to follow.
 
 ---
 

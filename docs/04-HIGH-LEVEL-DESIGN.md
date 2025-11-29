@@ -23,7 +23,6 @@
 - Communicate with Temporal cluster to start/resume/terminate workflows
 - Query workflow state and execution status
 - Manage workflow and node definitions (CRUD operations)
-- Handle client authentication and authorization
 
 **Key Classes**:
 - `DriftApplication`: Main application entry point (Dropwizard)
