@@ -7,6 +7,8 @@
     <groupId>com.flipkart.drift</groupId>
     <artifactId>drift-parent</artifactId>
     <packaging>pom</packaging>
+    <!-- Use the specific 'revision' property allowed by Maven 3.5.0+ -->
+    <version>${revision}</version>
 
     <properties>
         <revision>1.0-SNAPSHOT</revision>
@@ -17,11 +19,14 @@
         <junit.version>5.10.0</junit.version>
     </properties>
 
-
-    <!-- FIX: Use the specific 'revision' property allowed by Maven 3.5.0+ -->
-    <version>${revision}</version>
-
-
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+   
     <distributionManagement>
         <repository>
             <id>clojars</id>
