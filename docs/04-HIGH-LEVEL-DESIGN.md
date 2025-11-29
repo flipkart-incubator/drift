@@ -186,5 +186,6 @@
 ```
 
 > **Note**: Drift uses Temporal's pluggable architecture for persistence and visibility. Users can choose their preferred backing stores (e.g., PostgreSQL, Cassandra, MySQL for persistence; ElasticSearch, standard SQL for visibility) based on their infrastructure and scaling needs. The diagram above represents a reference implementation.
+
 **Next**: [Low-Level Design (LLD)](05-LOW-LEVEL-DESIGN.md)
 
