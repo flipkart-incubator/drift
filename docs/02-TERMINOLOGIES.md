@@ -45,5 +45,5 @@ Workflow Definition and Node Definition are the two foundational data structures
 In short, the Workflow Spec defines the structure and sequence, while the Node Specs define the content and parameters for every step within that structure. Both are cached for fast lookup and persisted for durability.
 
 ---
-**Next**: [Architecture](02-ARCHITECTURE-OVERVIEW.md)
+**Next**: [Architecture](03-ARCHITECTURE-OVERVIEW)
 
