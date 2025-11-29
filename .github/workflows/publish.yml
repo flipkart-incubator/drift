@@ -27,9 +27,8 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-
-        # server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
-        # settings-path: ${{ github.workspace }} # location for the settings.xml file
+        server-id: clojars # Value of the distributionManagement/repository/id field of the pom.xml
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Ensure SNAPSHOT revision for workflow_dispatch
       # if: github.event_name == 'workflow_dispatch'
@@ -55,7 +54,7 @@ jobs:
       run: mvn -B package 
 
     - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy # -s $GITHUB_WORKSPACE/settings.xml
+      run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
       env:
         CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
         CLOJARS_PASSWORD: ${{ secrets.CLOJARS_TOKEN }}
