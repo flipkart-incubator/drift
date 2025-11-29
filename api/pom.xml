@@ -22,7 +22,7 @@
     </build>
     <groupId>com.flipkart.drift</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <version>1.0.0-RELEASE</version>
+    <version>${project.build.version}</version>
     <artifactId>api</artifactId>
     <dependencies>
         <dependency>
