@@ -28,6 +28,8 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         server-id: clojars # Value of the distributionManagement/repository/id field of the pom.xml
+        server-username: ${{ secrets.CLOJARS_USERNAME }} # env variable for username
+        server-password: ${{ secrets.CLOJARS_TOKEN }} # env variable for password / deploy token
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Ensure SNAPSHOT revision for workflow_dispatch
@@ -55,6 +57,3 @@ jobs:
 
     - name: Publish to GitHub Packages Apache Maven
       run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
-      env:
-        CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
-        CLOJARS_PASSWORD: ${{ secrets.CLOJARS_TOKEN }}
