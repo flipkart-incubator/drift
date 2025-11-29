@@ -51,6 +51,16 @@ Typically follows a **Directed Acyclic Graph (DAG)** structure, where nodes exec
 #### **Capability**
 Supports complex, iterative use cases by allowing **explicit looping mechanisms**.
 
+---
+### 3. Workflow and Node Definition (Specs)
+Workflow Definition and Node Definition are the two foundational data structures derived from the DSL that drive runtime execution.
 
+- Workflow Spec is the definitive, version-controlled blueprint for the entire automation. It contains the complete list of constituent Node Specs and the explicit transition rules (edges) that define the execution flow.
+
+- Node Spec is the detailed configuration object for a single unit of work (a Native Node). It holds all the runtime parameters—such as the target URL for an HTTP node, or the script for a Groovy node—that the Worker requires to execute that specific step.
+
+In short, the Workflow Spec defines the structure and sequence, while the Node Specs define the content and parameters for every step within that structure. Both are cached for fast lookup and persisted for durability.
+
+---
 **Next**: [Architecture](02-ARCHITECTURE-OVERVIEW.md)
 
