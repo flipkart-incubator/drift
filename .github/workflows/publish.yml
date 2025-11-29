@@ -60,3 +60,6 @@ jobs:
 
     - name: Publish to Clojars
       run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+      env:
+          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
+          CLOJARS_TOKEN: ${{ secrets.CLOJARS_TOKEN }}
