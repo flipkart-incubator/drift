@@ -12,6 +12,220 @@
 
 ---
 
+
+## Core Components
+
+### 1. API Service (`api` module)
+
+**Purpose**: REST API layer for workflow orchestration management
+
+**Responsibilities**:
+- Expose REST endpoints for workflow lifecycle operations
+- Communicate with Temporal cluster to start/resume/terminate workflows
+- Query workflow state and execution status
+- Manage workflow and node definitions (CRUD operations)
+- Handle client authentication and authorization
+
+**Key Classes**:
+- `DriftApplication`: Main application entry point (Dropwizard)
+- `WorkflowResource`: REST endpoints for workflow operations
+- `NodeDefinitionResource`: CRUD operations for node definitions
+- `WorkflowDefinitionResource`: CRUD operations for workflow definitions
+- `TemporalService`: Service layer for Temporal interactions
+
+---
+
+### 2. Worker Service (`worker` module)
+
+**Purpose**: Temporal worker that executes workflow activities
+
+**Responsibilities**:
+- Poll Temporal task queues for work
+- Execute workflow logic (GenericWorkflowImpl)
+- Execute node activities (HTTP, Groovy, Branch, etc.)
+- Manage workflow state and context
+- Handle workflow errors and retries
+
+**Key Classes**:
+- `WorkerApplication`: Main worker entry point (Dropwizard)
+- `GenericWorkflowImpl`: Core workflow execution implementation
+- `WorkflowNodeExecutor`: Orchestrates node execution
+- `TemporalWorkerManaged`: Manages Temporal worker lifecycle
+- `*NodeActivityImpl`: Activity implementations for each node type
+
+---
+
+### 3. Commons Module (`commons`)
+
+**Purpose**: Shared data models, enums, and utilities
+
+**Responsibilities**:
+- Define common data structures (DTOs, domain models)
+- Provide shared enums and constants
+- Define node type hierarchy and interfaces
+- Workflow and node definition models
+- Request/response contracts
+
+**Key Components**:
+- **Model Layer**:
+  - `Workflow`: Workflow definition with states and transitions
+  - `NodeDefinition`: Abstract base class for all node types
+  - `WorkflowStartRequest`: Workflow initiation request
+  - `WorkflowState`: Runtime workflow state
+- **Node Types**:
+  - `HttpNode`: HTTP API call node
+  - `GroovyNode`: Script evaluation node
+  - `BranchNode`: Conditional branching node
+  - `InstructionNode`: UI instruction/form node
+  - `ProcessorNode`: Data processing node
+  - `SuccessNode`: Workflow success termination
+  - `FailureNode`: Workflow failure termination
+
+---
+
+### 4. HBase Entities Module (`hbase-entities`)
+
+**Purpose**: HBase persistence layer with ORM mapping
+
+**Responsibilities**:
+- Define HBase table schemas
+- Map Java objects to HBase rows
+- Provide DAO (Data Access Object) layer
+- Handle serialization/deserialization
+
+**Key Classes**:
+- `WorkflowHB`: HBase entity for workflow definitions
+- `NodeHB`: HBase entity for node definitions
+- `WorkflowContextHB`: HBase entity for workflow runtime context
+- `AbstractEntityDao`: Generic DAO implementation
+
+**HBase Tables**:
+1. **WorkflowHB**: Stores workflow definitions
+  - Row Key: `{workflowId}_{version}`
+  - Column: `workflowData` (JSON serialized workflow)
+
+2. **NodeHB**: Stores node definitions
+  - Row Key: `{nodeId}_{version}`
+  - Column: `nodeData` (JSON serialized node)
+
+3. **WorkflowContextHB**: Stores workflow execution context
+  - Row Key: `{workflowExecutionId}`
+  - Column: `context` (JSON serialized context)
+
+---
+
+### Monitoring & Metrics
+- **Prometheus**: Metrics collection
+- **Micrometer**: Metrics instrumentation
+- **Dropwizard Metrics**: Application metrics
+
+### Build & Deployment
+- **Maven 3.6+**: Build automation
+- **Java 17**: Runtime environment
+- **Docker**: Containerization
+- **Kubernetes/Helm**: Container orchestration
+
+
+
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                           CLIENT APPLICATIONS                      │
+│                             (Frontend, APIs)                       │
+└────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ REST API (HTTP)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                              API LAYER                              │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │              Drift API Service (Dropwizard)                   │  │
+│  │  ┌────────────┐  ┌─────────────┐  ┌──────────────────┐        │  │
+│  │  │ Workflow   │  │    Node     │  │    Workflow      │        │  │
+│  │  │ Resource   │  │ Definition  │  │   Definition     │        │  │
+│  │  │ (REST)     │  │  Resource   │  │    Resource      │        │  │
+│  │  └────────────┘  └─────────────┘  └──────────────────┘        │  │
+│  │         │                │                  │                 │  │
+│  │         └────────────────┴──────────────────┘                 │  │
+│  │                          │                                    │  │
+│  │                 ┌────────▼────────┐                           │  │
+│  │                 │ Temporal Service│                           │  │
+│  │                 │  (Java SDK)     │                           │  │
+│  │                 └────────┬────────┘                           │  │
+│  └──────────────────────────┼────────────────────────────────────┘  │
+└───────────────────────────┼──┼──────────────────────────────────────┘
+                            │  │
+                            │  │ Temporal gRPC Protocol
+                            │  │
+┌───────────────────────────▼──▼──────────────────────────────────────┐
+│                      TEMPORAL CLUSTER                               │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐                 │
+│  │  Frontend   │  │   History    │  │   Matching  │                 │
+│  │   Service   │◄─┤   Service    │◄─┤   Service   │                 │
+│  └─────────────┘  └──────────────┘  └─────────────┘                 │
+│         │                  │                                        │
+│         │         ┌────────▼────────┐                               │
+│         │         │  Persistence    │                               │
+│         │         │     (TiDB)      │                               │
+│         │         └─────────────────┘                               │
+└─────────┼───────────────────────────────────────────────────────────┘
+          │
+          │ Task Queue
+          │
+┌─────────▼──────────────────────────────────────────────────────────────┐
+│                          WORKER LAYER                                  │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │         Drift Worker Service (Dropwizard + Temporal Worker)       │ │
+│  │  ┌──────────────┐                                                 │ │
+│  │  │   Temporal   │                                                 │ │
+│  │  │    Worker    │                                                 │ │
+│  │  │  (Polling)   │                                                 │ │
+│  │  └──────┬───────┘                                                 │ │
+│  │         │                                                         │ │
+│  │  ┌──────▼──────────────────────────────────────────────────────┐  │ │
+│  │  │               Workflow Execution Engine                     │  │ │
+│  │  │  ┌────────────────┐  ┌────────────────┐                     │  │ │
+│  │  │  │   Generic      │  │  Node          │                     │  │ │
+│  │  │  │   Workflow     │◄─┤  Executor      │                     │  │ │
+│  │  │  │   Impl         │  │                │                     │  │ │
+│  │  │  └────────────────┘  └───────┬────────┘                     │  │ │
+│  │  │                              │                              │  │ │
+│  │  │         ┌────────────────────┴────────────────────┐         │  │ │
+│  │  │         │                                         │         │  │ │
+│  │  │  ┌──────▼──────┐  ┌──────────────┐  ┌─────────────▼────┐    │  │ │
+│  │  │  │   Activity  │  │   Activity   │  │    Activity      │    │  │ │
+│  │  │  │  HTTP Node  │  │ Groovy Node  │  │  Branch Node     │    │  │ │
+│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘    │  │ │
+│  │  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐    │  │ │
+│  │  │  │  Activity   │  │   Activity   │  │    Activity      │    │  │ │
+│  │  │  │Instruction  │  │  Processor   │  │  Success/Failure │    │  │ │
+│  │  │  │    Node     │  │    Node      │  │      Node        │    │  │ │
+│  │  │  └─────────────┘  └──────────────┘  └──────────────────┘    │  │ │
+│  │  └─────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │
+        ┌───────────────────────────┴────────────────────────────┐
+        │                                                        │
+        ▼                                                        ▼
+┌────────────────┐                                      ┌────────────────┐
+│  CONTEXT + DSL │                                      │    CACHING     │
+│      STORE     │                                      │                │
+│  ┌──────────┐  │                                      │  ┌──────────┐  │
+│  │  HBase   │  │                                      │  │  Redis   │  │
+│  │  Cluster │  │                                      │  │ Sentinel │  │
+│  │          │  │                                      │  │  Cluster │  │
+│  │ ┌──────┐ │  │                                      │  └──────────┘  │
+│  │ │      │ │  │                                      │                │
+│  │ │      │ │  │                                      │  • Workflow    │
+│  │ │      │ │  │                                      │    Definitions │
+│  │ │      │ │  │                                      │  • Node Defs   │
+│  │ └──────┘ │  │                                      │                │
+└────────────────┘                                      └────────────────┘
+
+```
+
 ## System Overview
 
 Drift is designed as a microservices-based architecture with clear separation of concerns:
@@ -30,8 +244,7 @@ Drift is designed as a microservices-based architecture with clear separation of
 │                                                             │
 │  Does NOT:                                                  │
 │  • Execute workflow logic                                   │
-│  • Run activities                                           │
-│  • Directly access HBase (only through cache)               │
+│  • Run activities                                           │              │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -402,6 +615,11 @@ Each node type must implement:
 
 ---
 
+## Data Flow
+<img width="1714" height="1877" alt="dataflow" src="https://github.com/user-attachments/assets/339428cd-1e35-4c22-9e2e-796186075cce" />
+
+---
+
 ## State Management
 
 ### Workflow State Model
@@ -618,5 +836,64 @@ Workflows support global and node-level failure handlers:
 
 ---
 
-**Next**: [Low-Level Design (LLD)](./03-LOW-LEVEL-DESIGN.md)
+
+## Deployment View
+
+### Kubernetes Deployment
+
+```
+┌──────────────────────────────────────────────────────┐
+│                      Kubernetes Cluster              │
+│                                                      │
+│  ┌────────────────────────────────────────────────┐  │
+│  │                    Namespace: drift            │  │
+│  │                                                │  │
+│  │  ┌────────────────┐        ┌────────────────┐  │  │
+│  │  │  API Pods      │        │  Worker Pods   │  │  │
+│  │  │                │        │                │  │  │
+│  │  │                │        │                │  │  │
+│  │  │ • Port: 8000   │        │ • Port: 7200   │  │  │
+│  │  │ • Port: 8001   │        │ • Port: 7201   │  │  │
+│  │  │   (admin)      │        │   (admin)      │  │  │
+│  │  │ • Port: 9090   │        │ • Port: 9090   │  │  │
+│  │  │   (metrics)    │        │   (metrics)    │  │  │
+│  │  └────────┬───────┘        └────────┬───────┘  │  │
+│  │           │                         │          │  │
+│  │  ┌────────▼───────┐       ┌────────▼───────┐   │  │
+│  │  │   Service:     │       │   Service:     │   │  │
+│  │  │   drift-api    │       │ drift-worker   │   │  │
+│  │  │  (LoadBalancer)│       │  (ClusterIP)   │   │  │
+│  │  └────────────────┘       └────────────────┘   │  │
+│  │                                                │  │
+│  │  ┌──────────────────────────────────────────┐  │  │
+│  │  │           ConfigMap / Secrets            │  │  │
+│  │  │  • Environment variables                 │  │  │
+│  │  │  • Redis config                          │  │  │
+│  │  │  • Temporal connection                   │  │  │
+│  │  │  • HBase config                          │  │  │
+│  │  └──────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────┘
+```
+
+### External Dependencies
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    External Infrastructure                     │
+│                                                                │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐  │
+│  │ Temporal Cluster │  │  Redis Sentinel  │  │ HBase Cluster│  │
+│  │  (Self-hosted)   │  │    (3 nodes)     │  │              │  │
+│  │                  │  │                  │  │              │  │
+│  │ • Frontend       │  │ • Master         │  │ • Master     │  │
+│  │ • History        │  │ • Sentinels      │  │ • RegionSrvs │  │
+│  │ • Matching       │  │ • Replicas       │  │ • ZooKeeper  │  │
+│  │ • Worker         │  │                  │  │              │  │
+│  └──────────────────┘  └──────────────────┘  └──────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+
+**Next**: [Low-Level Design (LLD)](./05-LOW-LEVEL-DESIGN)
 
