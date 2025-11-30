@@ -13,6 +13,8 @@
 
 ## 1. Core Philosophy
 
+> **Note to Adopters**: The philosophy described below reflects the guiding principles established by the original developers of Drift to ensure strict separation of concerns. All design decisions and contract structures in this document are influenced by this mindset. However, this does **not** restrict new users or contributors from experimenting with different patterns or extending the platform to suit their own architectural needs.
+
 ### Drift as Action Orchestrator and Data Provider
 
 The Drift system operates on a fundamental principle of separation of concerns between the backend (Drift) and frontend clients. Drift serves as an **Action Orchestrator** and **Data Provider**, explicitly avoiding decisions related to presentation, design, or user experience.
