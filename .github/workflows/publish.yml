@@ -8,8 +8,8 @@ on:
   push: 
     tags:
       - v*
-  # pull_request:
-  #   branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
     
 jobs:
   publish:
@@ -28,8 +28,8 @@ jobs:
         distribution: 'adopt'
         cache: 'maven'   # Enable Maven caching
         server-id: clojars # Value of the distributionManagement/repository/id field of the pom.xml
-        server-username: CLOJARS_USERNAME  # env variable for username
-        server-password: CLOJARS_TOKEN # env variable for password / deploy token
+        server-username: CENTRAL_USERNAME  # env variable for username
+        server-password: CENTRAL_TOKEN # env variable for password / deploy token
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Print settings.xml
@@ -58,8 +58,8 @@ jobs:
     - name: Build with Maven
       run: mvn -B package 
 
-    - name: Publish to Clojars
+    - name: Publish to Maven Central
       run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
       env:
-          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
-          CLOJARS_TOKEN: ${{ secrets.CLOJARS_TOKEN }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
