@@ -55,3 +55,8 @@ logs/
 # ----- Internal implementation and documentation -----
 /worker-flipkart
 /docs
+
+
+# ----- Maven -----
+settings.xml
+.flattened-pom.xml

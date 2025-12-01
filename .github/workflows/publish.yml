@@ -14,6 +14,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+      CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
     # permissions:
     #   contents: read
     #   packages: write
@@ -60,6 +63,4 @@ jobs:
 
     - name: Publish to Maven Central
       run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
-      env:
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+
