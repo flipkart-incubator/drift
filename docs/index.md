@@ -1,6 +1,6 @@
 ---
 title: "Welcome to Drift Platform Documentation"
-layout: home
+layout: single
 author_profile: false
 ---
 
