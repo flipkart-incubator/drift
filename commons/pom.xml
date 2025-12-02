@@ -114,7 +114,7 @@
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-annotation</artifactId>
-            <version>4.2.22</version>
+            <version>4.2.37</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
