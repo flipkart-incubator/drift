@@ -3,7 +3,7 @@ layout: home
 author_profile: false
 ---
 
-# Welcome to Drift Platform Documentation
+## Welcome to Drift Platform Documentation
 
 **Drift** is a Temporal-powered, low-code workflow orchestration platform that enables users to design, deploy, and execute workflows using native reusable nodes.
 
