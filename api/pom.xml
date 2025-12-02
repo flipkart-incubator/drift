@@ -20,7 +20,6 @@
             </plugin>
         </plugins>
     </build>
-    <groupId>com.flipkart.drift</groupId>
     <modelVersion>4.0.0</modelVersion>
     <version>${revision}</version>
     <artifactId>api</artifactId>
@@ -75,6 +74,11 @@
         <dependency>
             <groupId>guru.nidi</groupId>
             <artifactId>graphviz-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.flipkart.drift</groupId>
+            <artifactId>java-sdk</artifactId>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>com.flipkart.drift</groupId>

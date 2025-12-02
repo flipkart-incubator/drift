@@ -16,7 +16,7 @@ import com.flipkart.drift.worker.translator.ClientResolvedDetailBuilder;
 import com.google.inject.Inject;
 import io.temporal.activity.Activity;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import com.flipkart.drift.worker.service.WorkflowConfigStoreService;
 
 import java.util.ArrayList;

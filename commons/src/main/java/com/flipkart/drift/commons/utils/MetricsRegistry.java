@@ -1,6 +1,7 @@
 package com.flipkart.drift.commons.utils;
 
 import com.codahale.metrics.*;
+import com.codahale.metrics.jmx.JmxReporter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;

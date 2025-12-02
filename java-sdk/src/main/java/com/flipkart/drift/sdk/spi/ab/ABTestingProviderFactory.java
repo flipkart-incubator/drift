@@ -1,9 +1,12 @@
 package com.flipkart.drift.sdk.spi.ab;
 
 public class ABTestingProviderFactory {
-    private static ABTestingProvider provider = new NoOpABTestingProvider();
+    private static volatile ABTestingProvider provider = new NoOpABTestingProvider();
 
     public static void setProvider(ABTestingProvider provider) {
+        if (provider == null) {
+            throw new IllegalArgumentException("ABTestingProvider cannot be null");
+        }
         ABTestingProviderFactory.provider = provider;
     }
 

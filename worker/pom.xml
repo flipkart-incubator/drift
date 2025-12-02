@@ -78,11 +78,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>com.squareup.retrofit2</groupId>
             <artifactId>adapter-guava</artifactId>
             <exclusions>
@@ -138,6 +133,10 @@
             <groupId>com.flipkart.drift</groupId>
             <artifactId>java-sdk</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.temporal</groupId>
+            <artifactId>temporal-sdk</artifactId>
         </dependency>
         <dependency>
             <groupId>io.temporal</groupId>

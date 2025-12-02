@@ -1,9 +1,12 @@
 package com.flipkart.drift.sdk.spi.auth;
 
 public class TokenProviderFactory {
-    private static TokenProvider provider = new NoOpTokenProvider();
+    private static volatile TokenProvider provider = new NoOpTokenProvider();
 
     public static void setProvider(TokenProvider provider) {
+        if (provider == null) {
+            throw new IllegalArgumentException("TokenProvider cannot be null");
+        }
         TokenProviderFactory.provider = provider;
     }
 
