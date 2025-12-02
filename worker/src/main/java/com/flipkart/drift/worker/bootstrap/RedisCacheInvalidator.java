@@ -15,12 +15,13 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static com.flipkart.drift.api.service.builder.NodeDefinitionService.NODE_EVENT_ID;
-import static com.flipkart.drift.api.service.builder.WorkflowDefinitionService.WORKFLOW_EVENT_ID;
 import static com.flipkart.drift.commons.utils.Constants.Workflow.DSL_UPDATE_CHANNEL;
 
 @Slf4j
 public class RedisCacheInvalidator implements Managed {
+    public static final String NODE_EVENT_ID = "NODE";
+    public static final String WORKFLOW_EVENT_ID = "WORKFLOW";
+
     private final NodeDefinitionCache nodeDefinitionCache;
     private final WorkflowCache workflowCache;
     private final JedisPoolAbstract jedisPool;

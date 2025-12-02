@@ -1,8 +1,8 @@
 package com.flipkart.drift.worker.model.workflow;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.flipkart.drift.commons.model.client.response.View;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.response.View;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import lombok.*;
 
 import java.io.Serializable;

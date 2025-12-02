@@ -2,7 +2,7 @@ package com.flipkart.drift.worker.activities;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.drift.commons.model.clientComponent.BranchComponents;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.BranchNode;
 import com.flipkart.drift.commons.model.resolvedDetails.BranchDetails;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;

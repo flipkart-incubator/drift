@@ -50,4 +50,3 @@ public abstract class NodeDefinition {
 
     public abstract void mergeRequestToEntity(NodeDefinition sourceNode);
 }
-

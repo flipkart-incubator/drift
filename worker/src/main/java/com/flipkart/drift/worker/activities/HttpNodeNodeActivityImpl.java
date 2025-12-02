@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.drift.worker.Utility.WorkerUtility;
 import com.flipkart.drift.worker.executor.HttpExecutor;
 import com.flipkart.drift.commons.model.clientComponent.HttpComponents;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.HttpNode;
 import com.flipkart.drift.commons.model.resolvedDetails.HttpDetails;
 import com.flipkart.drift.commons.model.resolvedDetails.TransformerDetails;

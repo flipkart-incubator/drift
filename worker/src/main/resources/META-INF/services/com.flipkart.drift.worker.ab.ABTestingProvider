@@ -1,1 +1,1 @@
-com.flipkart.drift.worker.ab.NoOpABTestingProvider
+com.flipkart.drift.sdk.spi.ab.NoOpABTestingProvider

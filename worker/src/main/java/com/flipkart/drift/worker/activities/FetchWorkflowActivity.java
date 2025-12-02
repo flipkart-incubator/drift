@@ -1,6 +1,6 @@
 package com.flipkart.drift.worker.activities;
 
-import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import io.temporal.activity.ActivityInterface;

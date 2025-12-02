@@ -1,8 +1,8 @@
 package com.flipkart.drift.worker.activities;
 
-import com.flipkart.drift.commons.model.client.request.WorkflowResumeRequest;
-import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
-import com.flipkart.drift.commons.model.client.request.WorkflowUtilityRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowUtilityRequest;
 import io.temporal.activity.ActivityInterface;
 
 @ActivityInterface(namePrefix = "workflowContextManager")
