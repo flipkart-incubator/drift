@@ -132,6 +132,10 @@
         </dependency>
         <dependency>
             <groupId>com.flipkart.drift</groupId>
+            <artifactId>commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.flipkart.drift</groupId>
             <artifactId>java-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
