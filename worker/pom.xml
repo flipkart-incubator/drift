@@ -132,7 +132,7 @@
         <dependency>
             <groupId>com.flipkart.drift</groupId>
             <artifactId>java-sdk</artifactId>
-            <version>${project.version}</version>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>io.temporal</groupId>
