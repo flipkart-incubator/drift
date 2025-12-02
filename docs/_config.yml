@@ -10,8 +10,6 @@ baseurl: "/drift" # the subpath of your site, e.g. /blog, or leave blank for roo
 remote_theme: "mmistakes/minimal-mistakes@4.27.3"
 plugins:
   - jekyll-include-cache
-  - jekyll-feed
-  - jekyll-sitemap
 
 # Site Author
 author:
@@ -42,6 +40,7 @@ footer:
     - label: "GitHub"
       icon: "fab fa-github"
       url: "https://github.com/flipkart-incubator/drift"
+
 
 # Reading Files
 include:
