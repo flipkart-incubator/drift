@@ -14,4 +14,4 @@ JVM_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED \
           -XX:-OmitStackTraceInFastThrow \
           -XX:+HeapDumpOnOutOfMemoryError  -XX:HeapDumpPath=/var/log/drift-worker/heap_dump.hprof"
 
-exec java "$JVM_OPTS" -server -jar -Xms"${JVM_XMS}" -Xmx"${JVM_XMX}" /usr/share/drift-worker/service/worker.jar server /usr/share/drift-worker/config/config.yaml
+exec java $JVM_OPTS -server -jar -Xms"${JVM_XMS}" -Xmx"${JVM_XMX}" /usr/share/drift-worker/service/worker.jar server /usr/share/drift-worker/config/config.yaml

@@ -14,4 +14,4 @@ JAVA_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED \
                -XX:-OmitStackTraceInFastThrow \
                -XX:+HeapDumpOnOutOfMemoryError  -XX:HeapDumpPath=/var/log/drift-api/heap_dump.hprof"
 
-exec java "$JAVA_OPTS" -server -jar -Xms"${JVM_XMS}" -Xmx"${JVM_XMX}" /usr/share/drift-api/service/api.jar server /usr/share/drift-api/config/config.yaml
+exec java $JAVA_OPTS -server -jar -Xms"${JVM_XMS}" -Xmx"${JVM_XMX}" /usr/share/drift-api/service/api.jar server /usr/share/drift-api/config/config.yaml
