@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.NodeDefinitionDao;
 import com.flipkart.drift.persistence.entity.NodeHB;
-import com.flipkart.drift.persistence.exception.ApiException;
+import com.flipkart.drift.commons.exception.ApiException;
 import com.flipkart.drift.commons.model.enums.Version;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.google.inject.Inject;

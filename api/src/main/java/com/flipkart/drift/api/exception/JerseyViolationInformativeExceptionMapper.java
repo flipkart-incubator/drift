@@ -1,6 +1,6 @@
 package com.flipkart.drift.api.exception;
 
-import com.flipkart.drift.commons.model.client.response.ErrorResponse;
+import com.flipkart.drift.sdk.model.response.ErrorResponse;
 import io.dropwizard.jersey.validation.ConstraintMessage;
 import io.dropwizard.jersey.validation.JerseyViolationException;
 import lombok.extern.slf4j.Slf4j;

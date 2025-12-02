@@ -3,12 +3,12 @@ package com.flipkart.drift.api.resources;
 import com.codahale.metrics.annotation.ExceptionMetered;
 import com.codahale.metrics.annotation.Timed;
 import com.flipkart.drift.api.service.TemporalService;
-import com.flipkart.drift.commons.model.client.request.WorkflowResumeRequest;
-import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
-import com.flipkart.drift.commons.model.client.request.WorkflowTerminateRequest;
-import com.flipkart.drift.commons.model.client.request.WorkflowUtilityRequest;
-import com.flipkart.drift.commons.model.client.response.WorkflowResponse;
-import com.flipkart.drift.commons.model.client.response.WorkflowUtilityResponse;
+import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowTerminateRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowUtilityRequest;
+import com.flipkart.drift.sdk.model.response.WorkflowResponse;
+import com.flipkart.drift.sdk.model.response.WorkflowUtilityResponse;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.google.inject.Inject;
 

@@ -2,7 +2,7 @@ package com.flipkart.drift.commons.model.node;
 
 import com.flipkart.drift.commons.model.clientComponent.VariableAttributeComponent;
 import com.flipkart.drift.commons.model.enums.NodeType;
-import com.flipkart.drift.commons.model.instruction.Option;
+import com.flipkart.drift.sdk.model.instruction.Option;
 import lombok.Data;
 
 import java.util.List;

@@ -1,10 +1,12 @@
 package com.flipkart.drift.commons.exception;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import javax.ws.rs.core.Response;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class ApiException extends RuntimeException{
     private Response.Status status;
     private String message;

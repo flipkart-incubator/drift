@@ -3,7 +3,7 @@ package com.flipkart.drift.worker.activities;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.drift.commons.model.clientComponent.TransformerComponents;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.GroovyNode;
 import com.flipkart.drift.commons.model.resolvedDetails.TransformerDetails;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;

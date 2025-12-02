@@ -20,7 +20,6 @@
             </plugin>
         </plugins>
     </build>
-    <groupId>com.flipkart.drift</groupId>
     <modelVersion>4.0.0</modelVersion>
     <version>${revision}</version>
     <artifactId>api</artifactId>
@@ -28,12 +27,15 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
-            <version>7.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-core</artifactId>
-            <version>${dropwizard.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -48,38 +50,35 @@
         <dependency>
             <groupId>io.temporal</groupId>
             <artifactId>temporal-sdk</artifactId>
-            <version>1.22.2</version>
         </dependency>
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>3.3.0</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.22.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.14.2</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.14.2</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.14.2</version>
         </dependency>
         <dependency>
             <groupId>guru.nidi</groupId>
             <artifactId>graphviz-java</artifactId>
-            <version>0.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.flipkart.drift</groupId>
+            <artifactId>java-sdk</artifactId>
+            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>com.flipkart.drift</groupId>
@@ -89,25 +88,15 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.6.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.wordnik</groupId>
             <artifactId>swagger-annotations</artifactId>
-            <version>1.5.1-M2</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.netflix.archaius</groupId>
             <artifactId>archaius-core</artifactId>
-            <version>0.7.12</version>
-        </dependency>
-        <dependency>
-            <groupId>com.flipkart.drift</groupId>
-            <artifactId>hbase-entities</artifactId>
-            <version>${revision}</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
     <properties/>

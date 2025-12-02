@@ -1,10 +1,10 @@
 package com.flipkart.drift.worker.service;
 
 import com.flipkart.drift.worker.Utility.ABServiceInitializer;
-import com.flipkart.drift.worker.ab.ABTestingProvider;
-import com.flipkart.drift.worker.ab.ABTestingProviderFactory;
+import com.flipkart.drift.sdk.spi.ab.ABTestingProvider;
+import com.flipkart.drift.sdk.spi.ab.ABTestingProviderFactory;
 import com.flipkart.drift.worker.model.IssueWorkflowMapping;
-import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.netflix.config.DynamicProperty;

@@ -15,7 +15,7 @@ import com.flipkart.drift.persistence.entity.WorkflowHB;
 import com.google.inject.Inject;
 import guru.nidi.graphviz.attribute.Color;
 import guru.nidi.graphviz.attribute.Font;
-import guru.nidi.graphviz.attribute.RankDir;
+import guru.nidi.graphviz.attribute.Rank;
 import guru.nidi.graphviz.attribute.Style;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
@@ -151,11 +151,11 @@ public class WorkflowDefinitionService {
         }
 
         // Create graph reference
-        Graph baseGraph = graph("Workflow").directed().graphAttr().with(RankDir.TOP_TO_BOTTOM);
+        Graph baseGraph = graph("Workflow").directed().graphAttr().with(Rank.dir(Rank.RankDir.TOP_TO_BOTTOM));
         if (Objects.equals(mode, "dark")) {
             baseGraph = baseGraph
                     .graphAttr().with(
-                            RankDir.TOP_TO_BOTTOM,
+                            Rank.dir(Rank.RankDir.TOP_TO_BOTTOM),
                             Color.rgb("0E0E0E").background(),
                             Color.rgb("FFFFFF").font(),
                             Font.name("Consolas")

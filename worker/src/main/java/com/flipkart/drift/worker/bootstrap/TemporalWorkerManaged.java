@@ -10,6 +10,7 @@ import com.google.inject.Singleton;
 import com.uber.m3.tally.Scope;
 import io.dropwizard.lifecycle.Managed;
 import io.temporal.client.WorkflowClient;
+
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;

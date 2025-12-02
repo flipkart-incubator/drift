@@ -1,7 +1,7 @@
 package com.flipkart.drift.worker.model.activity;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

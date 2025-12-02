@@ -1,6 +1,7 @@
 package com.flipkart.drift.commons.utils;
 
 import com.codahale.metrics.*;
+import com.codahale.metrics.jmx.JmxReporter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -20,16 +21,15 @@ public enum MetricsRegistry {
         jmxReporter.start();
     }
 
-    public static <T extends Metric> T registerGauge(Class<?> callerClass, T metric, String... names) {
+    public static <T extends Metric> void registerGauge(Class<?> callerClass, T metric, String... names) {
         String metricName = MetricRegistry.name(callerClass, names);
         try {
-            return INSTANCE.getRegistry().register(metricName, metric);
+            INSTANCE.getRegistry().register(metricName, metric);
         } catch (IllegalArgumentException e) {
             // Metric already exists, return existing one
             log.warn("Metric {} already registered, skipping registration", metricName);
             @SuppressWarnings("unchecked")
             T existingMetric = (T) INSTANCE.getRegistry().getMetrics().get(metricName);
-            return existingMetric;
         }
     }
 

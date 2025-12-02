@@ -1,6 +1,6 @@
 package com.flipkart.drift.worker.activities;
 
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.FailureNode;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;

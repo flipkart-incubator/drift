@@ -1,7 +1,7 @@
 package com.flipkart.drift.worker.util;
 
-import com.flipkart.drift.worker.auth.TokenProvider;
-import com.flipkart.drift.worker.auth.TokenProviderFactory;
+import com.flipkart.drift.sdk.spi.auth.TokenProvider;
+import com.flipkart.drift.sdk.spi.auth.TokenProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,9 +1,9 @@
 package com.flipkart.drift.worker.activities;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.flipkart.drift.commons.model.client.request.ViewResponse;
-import com.flipkart.drift.commons.model.client.response.View;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.response.ViewResponse;
+import com.flipkart.drift.sdk.model.response.View;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.ProcessorNode;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;

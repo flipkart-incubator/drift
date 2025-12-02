@@ -3,7 +3,7 @@ package com.flipkart.drift.worker.activities;
 import com.flipkart.drift.persistence.cache.NodeDefinitionCache;
 import com.flipkart.drift.persistence.cache.WorkflowCache;
 import com.flipkart.drift.worker.model.IssueWorkflowMapping;
-import com.flipkart.drift.commons.model.client.request.WorkflowStartRequest;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;

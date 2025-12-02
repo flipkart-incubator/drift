@@ -1,7 +1,7 @@
 package com.flipkart.drift.worker.Utility;
 
-import com.flipkart.drift.worker.ab.ABTestingProvider;
-import com.flipkart.drift.worker.ab.ABTestingProviderFactory;
+import com.flipkart.drift.sdk.spi.ab.ABTestingProvider;
+import com.flipkart.drift.sdk.spi.ab.ABTestingProviderFactory;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.Getter;

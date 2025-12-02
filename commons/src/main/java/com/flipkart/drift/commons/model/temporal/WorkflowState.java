@@ -1,9 +1,9 @@
 package com.flipkart.drift.commons.model.temporal;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.flipkart.drift.commons.model.client.IssueDetail;
-import com.flipkart.drift.commons.model.client.response.View;
-import com.flipkart.drift.commons.model.enums.WorkflowStatus;
+import com.flipkart.drift.sdk.model.client.IssueDetail;
+import com.flipkart.drift.sdk.model.response.View;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

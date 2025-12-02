@@ -1,7 +1,7 @@
 package com.flipkart.drift.api.exception.mapper;
 
 import com.flipkart.drift.api.exception.ApiException;
-import com.flipkart.drift.commons.model.client.response.ErrorResponse;
+import com.flipkart.drift.sdk.model.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 
