@@ -1,3 +1,11 @@
+---
+title: "Low-Level Design"
+permalink: /05-LOW-LEVEL-DESIGN/
+layout: single
+sidebar:
+  nav: "docs"
+---
+
 # Drift Platform - Low-Level Design (LLD)
 
 ## Table of Contents
@@ -806,5 +814,4 @@ temporalFrontEnd: ${TEMPORAL_FRONTEND}
 
 ---
 
-**Next**: [API Contracts](./04-API-CONTRACTS.md)
-
+**Next**: [API Contracts](/06-CONTRACTS/)

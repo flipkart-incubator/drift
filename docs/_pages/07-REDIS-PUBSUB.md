@@ -1,3 +1,11 @@
+---
+title: "Redis Pub/Sub"
+permalink: /07-REDIS-PUBSUB/
+layout: single
+sidebar:
+  nav: "docs"
+---
+
 # Drift Platform - Redis Pub/Sub System
 
 ## Overview
@@ -436,6 +444,5 @@ redisConfiguration:
 ---
 
 **See Also:**
-- [High-Level Design - Caching Strategy](./02-HIGH-LEVEL-DESIGN.md#caching-strategy)
-- [Architecture Overview - Redis Component](./01-ARCHITECTURE-OVERVIEW.md#caching)
-
+- [High-Level Design - Caching Strategy](/04-HIGH-LEVEL-DESIGN/#caching-strategy)
+- [Architecture Overview - Redis Component](/03-ARCHITECTURE-OVERVIEW/#caching)
