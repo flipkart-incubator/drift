@@ -137,12 +137,6 @@ The workflow context is a JSON object that maintains the state of a workflow exe
    - updatedAt: Timestamp
    
    Access Pattern: Point lookup by workflow execution ID
-
-DESIGN CONSIDERATIONS:
-- Composite keys for versioning support
-- Lexicographic ordering for range scans
-- Avoid hotspotting (no timestamp prefix)
-- Efficient point lookups
 ```
 
 ---
@@ -150,6 +144,7 @@ DESIGN CONSIDERATIONS:
 ## Sequence Diagrams
 
 ### Workflow Start & Resume Sequence
+<img width="1703" height="1864" alt="drift_flow drawio" src="https://github.com/user-attachments/assets/f8001019-66e9-423d-ad9f-e8e069246e0d" />
 
 > **Note**: The above design illustrates the sync mode of workflow interaction. Drift also supports an async mode, in which Redis Pub Sub is skipped and response is returned on a webhook, and the client is notified via webhook triggered at I/O or terminal nodes.
 
