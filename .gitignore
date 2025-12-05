@@ -54,7 +54,7 @@ logs/
 /scripts
 # ----- Internal implementation and documentation -----
 /worker-flipkart
-/docs
+/docs/_draft
 
 
 # ----- Maven -----
