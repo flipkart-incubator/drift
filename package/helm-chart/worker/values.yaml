@@ -1,0 +1,178 @@
+image:
+  registry: docker.io
+  repository: your-org/drift-worker
+  tag: latest
+  pullPolicy: IfNotPresent
+  runAsUser: 1000
+
+replicas: 1
+
+namespace: drift
+
+labels:
+  app: drift-worker
+  component: worker
+  managed-by: helm
+
+selectorLabels:
+  app: drift-worker
+  component: worker
+
+resources:
+  requests:
+    memory: 2G
+    cpu: 2
+  limits:
+    memory: 2G
+    cpu: 2
+
+env:
+  REDIS_PASSWORD: "your-redis-password"
+  REDIS_MASTER: "your-redis-master"
+  REDIS_SENTINELS: "your-redis-sentinel:26379"
+  REDIS_PREFIX: "drift"
+  ENUM_STORE_BUCKET: "file:////usr/share/drift-worker/config/lookup.properties"
+  HBASE_CONFIG_BUCKET: "file:////usr/share/drift-worker/config/hbase.properties"
+  AB_CONFIG_BUCKET: "file:////usr/share/drift-worker/config/ab.properties"
+  AUTH_PATH: "file:////usr/share/drift-worker/config/auth.properties"
+  WORKFLOW_PROPERTY_PATH: "file:////usr/share/drift-worker/config/workflow.properties"
+  TEMPORAL_FRONTEND: "your-temporal-frontend:7233"
+  TEMPORAL_TASK_QUEUE: "DRIFT_QUEUE"
+  HADOOP_USERNAME: "your-hadoop-username"
+  HADOOP_LOGIN_USER: "your-hadoop-login-user"
+  ZOOKEEPER_QUORUM_HOT: "your-zookeeper-quorum"
+  AB_ENDPOINT: "your-ab-endpoint"
+  AB_ENABLED: false
+  AB_CLIENT_ID: "your-ab-client-id"
+  AB_TENANT_ID: "your-ab-tenant-id"
+  AB_CLIENT_SECRET_KEY: "your-ab-client-secret"
+  AUTH_CLIENT_NAME: "your-auth-client-name"
+  AUTH_CLIENT_URL: "https://your-auth-service.com/"
+  AUTH_CLIENT_SECRET: "your-auth-client-secret"
+
+jvm:
+  heapSize:
+    xms: "1g"
+    xmx: "1g"
+
+# Config files - each config is in its own section for easy management
+# These are clean, human-readable configuration files
+configFiles:
+  # Main application configuration (config.yaml)
+  config.yaml: |
+    server:
+      applicationConnectors:
+        - type: http
+          port: 5600
+    
+      adminConnectors:
+        - type: http
+          port: 5601
+    
+    redisConfiguration:
+      password: ${REDIS_PASSWORD}
+      master: ${REDIS_MASTER}
+      sentinels: ${REDIS_SENTINELS}
+      prefix: ${REDIS_PREFIX}
+      maxTotal: 50
+      maxWaitMillis: 100
+      maxIdle: 25
+      minIdle: 25
+      testOnBorrow: true
+      blockWhenExhausted: true
+    
+    cacheRefreshExecutorServiceConfig:
+      minThreads: 1
+      maxThreads: 3
+      queueSize: 10
+    
+    staticCacheRefreshConfig:
+      nodeDefinitionConfig: 5
+      workflowConfig: 5
+    
+    cacheMaxEntriesConfig:
+      nodeDefinitionConfig: 1000
+      workflowConfig: 1000
+    
+    lookupPropertiesPath: ${ENUM_STORE_BUCKET}
+    
+    hbasePropertiesPath: ${HBASE_CONFIG_BUCKET}
+    
+    abPropertiesPath: ${AB_CONFIG_BUCKET}
+    
+    authPropertiesPath: ${AUTH_PATH}
+    
+    workflowPropertiesPath: ${WORKFLOW_PROPERTY_PATH}
+    
+    prometheusConfig:
+      port: 9090
+      path: "/metrics"
+    
+    awaitTerminationTimeoutInSec: 20
+    
+    workerDynamicOptions:
+      workflowTaskPoller: 20
+      activityTaskPoller: 50
+      workflowCacheSize: 600
+      maxWorkflowThreadCount: 800
+    
+    hadoopUserName: ${HADOOP_USERNAME}
+    hadoopLoginUser: ${HADOOP_LOGIN_USER}
+    
+    temporalTaskQueue: ${TEMPORAL_TASK_QUEUE}
+    temporalFrontEnd: ${TEMPORAL_FRONTEND}
+
+  # A/B Testing configuration (ab.properties)
+  ab.properties: |
+    # A/B Testing Configuration
+    ab.client.id=${AB_CLIENT_ID}
+    ab.tenant.id=${AB_TENANT_ID}
+    ab.endpoint=${AB_ENDPOINT}
+    ab.client.secret.key=${AB_CLIENT_SECRET_KEY}
+
+  # Authentication configuration (auth.properties)
+  auth.properties: |
+    # Authentication Configuration. Add properties as required by your auth implementation
+    auth.client.name=${AUTH_CLIENT_NAME}
+    auth.client.url=${AUTH_CLIENT_URL}
+    auth.client.secret=${AUTH_CLIENT_SECRET}
+
+  # HBase configuration (hbase.properties)
+  hbase.properties: |
+    # HBase Configuration
+    zookeeper.quorum.hot=${ZOOKEEPER_QUORUM_HOT}
+
+  # Lookup properties configuration (lookup.properties)
+  lookup.properties: |
+    # Lookup Properties Configuration
+    # Update the version on every properties update
+    version=2
+    payments.host=127.0.0.1
+    payments.port=80
+    payments.scheme=http
+    return_workflow.targetId=flipkart
+
+  # Workflow properties configuration (workflow.properties)
+  workflow.properties: |
+    # Workflow Configuration
+    # Format: workflow.<issueId>.<property>=<value>
+    
+    # Issue 289 - basic config
+    workflow.289.key=sample_status_workflow
+    workflow.289.version=2
+    
+    # Issue 289 - A/B testing config
+    workflow.289.ab.enabled=true
+    workflow.289.ab.experimentName=image_intelligence_in_return
+    workflow.289.ab.pivotType=customerId
+    workflow.289.ab.variable=Validate_Image
+    workflow.289.ab.control.version=1
+    workflow.289.ab.treatment.version=LATEST
+
+# SPI Provider configurations
+spiFiles:
+  com.flipkart.drift.sdk.spi.ab.ABTestingProvider: |
+    com.flipkart.drift.sdk.spi.ab.NoOpABTestingProvider
+
+  com.flipkart.drift.sdk.spi.auth.TokenProvider: |
+    com.flipkart.drift.sdk.spi.auth.NoOpTokenProvider

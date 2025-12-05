@@ -1,0 +1,13 @@
+namespace: drift-prod
+replicas: 3
+resources:
+  requests:
+    memory: 4G
+    cpu: 2
+  limits:
+    memory: 4G
+    cpu: 2
+env:
+  REDIS_PREFIX: "drift-prod"
+  ZOOKEEPER_QUORUM_HOT: "prod-zk:2181"
+

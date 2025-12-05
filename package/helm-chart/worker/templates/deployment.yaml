@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{- range $key, $val := .Values.labels }}
+    {{ $key }}: {{ $val | quote }}
+{{- end }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+{{- range $key, $val := .Values.selectorLabels }}
+      {{ $key }}: {{ $val | quote }}
+{{- end }}
+  template:
+    metadata:
+      labels:
+{{- range $key, $val := .Values.labels }}
+        {{ $key }}: {{ $val | quote }}
+{{- end }}
+    spec:
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ .Release.Name }}-config
+        - name: spi-volume
+          configMap:
+            name: {{ .Release.Name }}-spi
+      containers:
+          - name: {{ .Chart.Name }}
+            image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            securityContext:
+              runAsUser: {{ .Values.image.runAsUser }}
+            env:
+{{- range $key, $val := .Values.env }}
+                - name: {{ $key }}
+                  value: {{ $val | quote }}
+{{- end }}
+                - name: JVM_XMS
+                  value: {{ .Values.jvm.heapSize.xms | quote }}
+                - name: JVM_XMX
+                  value: {{ .Values.jvm.heapSize.xmx | quote }}
+            ports:
+              - containerPort: 5600
+              - containerPort: 5601
+              - containerPort: 5603
+            livenessProbe:
+              tcpSocket:
+                port: 5600
+              initialDelaySeconds: 30
+              periodSeconds: 30
+            resources:
+              {{ toYaml .Values.resources | indent 14 | trim }}
+            volumeMounts:
+              - name: config-volume
+                mountPath: /usr/share/drift-worker/config
+              - name: spi-volume
+                mountPath: /usr/share/drift-worker/service/META-INF/services

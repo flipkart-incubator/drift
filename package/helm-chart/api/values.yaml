@@ -1,0 +1,44 @@
+image:
+  registry: docker.io
+  repository: your-org/drift-api
+  tag: latest
+  pullPolicy: IfNotPresent
+  runAsUser: 1000
+
+replicas: 2
+
+namespace: drift
+
+labels:
+  app: drift-api
+  component: api
+  managed-by: helm
+
+selectorLabels:
+  app: drift-api
+  component: api
+
+resources:
+  requests:
+    memory: 2G
+    cpu: 2
+  limits:
+    memory: 2G
+    cpu: 2
+
+env:
+  REDIS_PASSWORD: "your-redis-password"
+  REDIS_MASTER: "your-redis-master"
+  REDIS_SENTINELS: "your-redis-sentinel:26379"
+  REDIS_PREFIX: "drift"
+  HBASE_CONFIG_BUCKET: "file:////usr/share/drift-api/config/hbase.properties"
+  TEMPORAL_FRONTEND: "your-temporal-frontend:7233"
+  TEMPORAL_TASK_QUEUE: "DRIFT_QUEUE"
+  HADOOP_USERNAME: "your-hadoop-username"
+  HADOOP_LOGIN_USER: "your-hadoop-login-user"
+  ZOOKEEPER_QUORUM_HOT: "your-zookeeper-quorum"
+
+jvm:
+  heapSize:
+    xms: "1g"
+    xmx: "1g"
