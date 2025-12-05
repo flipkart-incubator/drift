@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  config.yaml: |
+    server:
+      applicationConnectors:
+        - type: http
+          port: 8000
+    
+      adminConnectors:
+        - type: http
+          port: 8001
+    
+    logging:
+      level: INFO
+      loggers:
+        com.flipkart.drift: INFO
+      appenders:
+        - type: console
+          threshold: ALL
+          timeZone: IST
+          logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
+    
+    redisConfiguration:
+      password: {{ .Values.env.REDIS_PASSWORD }}
+      master: {{ .Values.env.REDIS_MASTER }}
+      sentinels: {{ .Values.env.REDIS_SENTINELS }}
+      prefix: {{ .Values.env.REDIS_PREFIX }}
+      maxTotal: 50
+      maxWaitMillis: 100
+      maxIdle: 25
+      minIdle: 25
+      testOnBorrow: true
+      blockWhenExhausted: true
+    
+    cacheRefreshExecutorServiceConfig:
+      minThreads: 1
+      maxThreads: 3
+      queueSize: 10
+    
+    staticCacheRefreshConfig:
+      nodeDefinitionConfig: 5
+      workflowConfig: 5
+    
+    cacheMaxEntriesConfig:
+      nodeDefinitionConfig: 1000 # 100 nodes, 10 versions each
+      workflowConfig: 1000 # 100 workflows, 10 versions each
+    
+    hbasePropertiesPath: {{ .Values.env.HBASE_CONFIG_BUCKET }}
+    
+    temporalFrontEnd: {{ .Values.env.TEMPORAL_FRONTEND }}
+    
+    temporalTaskQueue: {{ .Values.env.TEMPORAL_TASK_QUEUE }}
+    
+    hadoopUserName: {{ .Values.env.HADOOP_USERNAME }}
+    
+    hadoopLoginUser: {{ .Values.env.HADOOP_LOGIN_USER }}
+
+  hbase.properties: |
+    zookeeper.quorum.hot={{ .Values.env.ZOOKEEPER_QUORUM_HOT }}

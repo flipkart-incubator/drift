@@ -1,0 +1,16 @@
+namespace: drift-prod
+replicas: 3
+resources:
+  requests:
+    memory: 4G
+    cpu: 2
+  limits:
+    memory: 4G
+    cpu: 2
+env:
+  REDIS_PREFIX: "drift-prod"
+  ZOOKEEPER_QUORUM_HOT: "prod-zk:2181"
+  ENUM_STORE_BUCKET: "prod-lookup-bucket"
+  AB_ENDPOINT: "http://ab.prod.fkcloud.in"
+  AUTH_CLIENT_URL: "http://auth.prod.fkcloud.in"
+
