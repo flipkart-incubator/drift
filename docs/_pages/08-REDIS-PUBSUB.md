@@ -1,6 +1,6 @@
 ---
 title: "Redis Pub/Sub"
-permalink: /07-REDIS-PUBSUB/
+permalink: /08-REDIS-PUBSUB/
 layout: single
 sidebar:
   nav: "docs"

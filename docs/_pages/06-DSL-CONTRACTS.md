@@ -1,6 +1,6 @@
 ---
 title: "Contracts"
-permalink: /06-CONTRACTS/
+permalink: /06-DSL-CONTRACTS/
 layout: single
 sidebar:
   nav: "docs"
