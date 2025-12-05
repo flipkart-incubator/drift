@@ -64,7 +64,7 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
         String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
         IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
         
-        if (issueWorkflowMapping == null) {
+        if (issueWorkflowMapping == null || !issueWorkflowMapping.hasValidConfig()) {
             throw Activity.wrap(new RuntimeException(
                 "No workflow mapping found for issue id: " + issueId + 
                 ". Please configure workflow mapping."
