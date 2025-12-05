@@ -9,7 +9,6 @@ sidebar:
 # Drift Platform - Key Features
 
 ## Introduction
-<div style="background-color: #00004D; color: #66FF33; font-weight: bold; font-size: 16px; padding: 5px 10px; border-radius: 5px; display: inline-block;"> Introduction </div>
 
 ***Drift*** is a Temporal-powered, low-code workflow orchestration platform that enables users to design, deploy, and execute workflows using **[native reusable nodes](/02-TERMINOLOGIES/#1-native-nodes)**. The platform abstracts the complexity of workflow creation and management, provides a flexible, extensible architecture for building business flows, and also offers an easy, user-friendly way to interact with workflows.
 

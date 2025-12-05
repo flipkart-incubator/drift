@@ -9,355 +9,20 @@ sidebar:
 # Drift Platform - Low-Level Design (LLD)
 
 ## Table of Contents
-1. [Class Diagrams](#class-diagrams)
-2. [Detailed Component Design](#detailed-component-design)
-3. [Algorithms & Logic](#algorithms--logic)
-4. [Data Structures](#data-structures)
-5. [Sequence Diagrams](#sequence-diagrams)
-6. [Database Schema](#database-schema)
-7. [Configuration Management](#configuration-management)
+1. [Data Structures](#data-structures)
+2. [Sequence Diagrams](#sequence-diagrams)
+3. [Database Schema](#database-schema)
+4. [Configuration Management](#configuration-management)
 
 ---
-
-## Class Diagrams
-
-### Core Domain Model
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    WORKFLOW DOMAIN MODEL                         │
-└─────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────┐
-│      Workflow            │
-├──────────────────────────┤
-│ - id: String             │
-│ - comment: String        │
-│ - startNode: String      │
-│ - version: String        │
-│ - defaultFailureNode: String │
-│ - states: Map<String,    │
-│           WorkflowNode>  │
-│ - postWorkflowCompletion │
-│   Nodes: List<String>    │
-├──────────────────────────┤
-│ + validateWFFields()     │
-└──────────────────────────┘
-            │
-            │ 1..*
-            ▼
-┌──────────────────────────┐
-│    WorkflowNode          │
-├──────────────────────────┤
-│ - instanceName: String   │
-│ - nextNode: String       │
-│ - version: String        │
-│ - comment: String        │
-└──────────────────────────┘
-            │
-            │ references
-            ▼
-┌────────────────────────────────────────────────────────────────┐
-│                  NodeDefinition (Abstract)                     │
-├────────────────────────────────────────────────────────────────┤
-│ # id: String                                                   │
-│ # name: String                                                 │
-│ # type: NodeType                                               │
-│ # parameters: List<String>                                     │
-│ # version: String                                              │
-├────────────────────────────────────────────────────────────────┤
-│ + validateWFNodeFields()                                       │
-│ + getType(): NodeType {abstract}                              │
-│ + mergeRequestToEntity(NodeDefinition) {abstract}             │
-└──────────┬─────────────────┬─────────────────┬────────────────┘
-           │                 │                 │
-           ▼                 ▼                 ▼
-    ┌────────────┐    ┌────────────┐    ┌────────────┐
-    │  HttpNode  │    │ GroovyNode │    │ BranchNode │
-    └────────────┘    └────────────┘    └────────────┘
-           │                 │                 │
-           ▼                 ▼                 ▼
-    ┌────────────┐    ┌────────────┐    ┌────────────┐
-    │Instruction │    │ Processor  │    │ Success    │
-    │    Node    │    │    Node    │    │   Node     │
-    └────────────┘    └────────────┘    └────────────┘
-                          │
-                          ▼
-                    ┌────────────┐
-                    │  Failure   │
-                    │    Node    │
-                    └────────────┘
-```
-
-### Node Type Inheritance
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  NODE TYPE HIERARCHY                            │
-└─────────────────────────────────────────────────────────────────┘
-
-              ┌──────────────────────┐
-              │   NodeDefinition     │◄────────────────────┐
-              │   (Abstract Base)    │                     │
-              └──────────┬───────────┘                     │
-                         │ implements                      │
-                         ▼                                 │
-         ┌───────────────────────────────┐               │
-         │  Common Methods:              │               │
-         │  • validate()                 │               │
-         │  • getType()                  │               │
-         │  • mergeRequestToEntity()     │               │
-         └───────────────────────────────┘               │
-                         │                                 │
-        ┌────────────────┼────────────────┐               │
-        │                │                │               │
-        ▼                ▼                ▼               │
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  HttpNode    │  │ GroovyNode   │  │ BranchNode   │    │
-├──────────────┤  ├──────────────┤  ├──────────────┤    │
-│ + httpCompo  │  │ + script     │  │ + choices[]  │    │
-│   nents      │  │ + scriptType │  │ + defaultNode│    │
-│ + transformer│  │              │  │              │    │
-│   Components │  │              │  │              │    │
-├──────────────┤  ├──────────────┤  ├──────────────┤    │
-│ getType():   │  │ getType():   │  │ getType():   │    │
-│   HTTP       │  │   GROOVY     │  │   BRANCH     │    │
-└──────────────┘  └──────────────┘  └──────────────┘    │
-                                                         │
-        ┌────────────────┼────────────────┐             │
-        │                │                │             │
-        ▼                ▼                ▼             │
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│Instruction   │  │ Processor    │  │ Success      │  │
-│    Node      │  │    Node      │  │   Node       │  │
-├──────────────┤  ├──────────────┤  ├──────────────┤  │
-│ + instruction│  │ + processor  │  │ + message    │  │
-│              │  │   Components │  │ + status     │  │
-│              │  │ + transformer│  │              │  │
-│              │  │   Components │  │              │  │
-├──────────────┤  ├──────────────┤  ├──────────────┤  │
-│ getType():   │  │ getType():   │  │ getType():   │  │
-│  INSTRUCTION │  │  PROCESSOR   │  │  SUCCESS     │  │
-└──────────────┘  └──────────────┘  └──────────────┘  │
-                         │                              │
-                         ▼                              │
-                  ┌──────────────┐                     │
-                  │  Failure     │                     │
-                  │    Node      │                     │
-                  ├──────────────┤                     │
-                  │ + message    │                     │
-                  │ + errorCode  │                     │
-                  ├──────────────┤                     │
-                  │ getType():   │                     │
-                  │  FAILURE     │                     │
-                  └──────────────┘                     │
-                                                       │
-┌───────────────────────────────────────────────────────────────┐
-│                POLYMORPHIC BEHAVIOR                          │
-├───────────────────────────────────────────────────────────────┤
-│                                                               │
-│  NodeDefinition node = fetchNodeDefinition(id, version);     │
-│                                                               │
-│  switch (node.getType()) {                                   │
-│    case HTTP:                                                │
-│      HttpNode httpNode = (HttpNode) node;                    │
-│      executeHttpNode(httpNode);                              │
-│      break;                                                  │
-│    case GROOVY:                                              │
-│      GroovyNode groovyNode = (GroovyNode) node;              │
-│      executeGroovyNode(groovyNode);                          │
-│      break;                                                  │
-│    // ... other cases                                        │
-│  }                                                           │
-└───────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Detailed Component Design
-
-### 1. HTTP Node Activity Implementation
-
-**HttpNodeNodeActivityImpl**
-- Dependencies: WorkflowContextHBService, WorkflowConfigStoreService
-- Main method: `executeNode(ActivityRequest<HttpNode>): ActivityResponse`
-- Helper method: `executeHttp(...): JsonNode`
-
-**Execution Flow:**
-1. Extract HttpComponents from node definition
-2. Build context wrapper with global context and enum store
-3. Evaluate HTTP details using Groovy (resolve dynamic values like URLs, headers)
-4. Add performance test headers if in perf mode
-5. Get HTTP executor singleton for the base URL
-6. Execute HTTP call with retry logic
-7. Transform response using transformer components (Groovy scripts)
-8. Return activity response with transformed data
-
-**Error Handling:**
-- Network exceptions → Temporal auto-retry (3 attempts)
-- 4xx HTTP errors → Wrap and throw ApplicationFailure
-- Script evaluation errors → Wrap and throw ApplicationFailure
-
-### 2. Groovy Node Activity Implementation
-
-**GroovyNodeNodeActivityImpl**
-- Dependencies: WorkflowContextHBService, GroovyTranslator
-- Main method: `executeNode(ActivityRequest<GroovyNode>): ActivityResponse`
-- Helper method: `evaluateScript(...): JsonNode`
-
-**Execution Flow:**
-1. Fetch script content (inline or from file reference)
-2. Prepare bindings with context variables (_global, _enum_store, _thread)
-3. Create Groovy shell with bindings
-4. Evaluate script and capture result
-5. Convert result to JsonNode
-6. Return activity response with result
-
-**Security Considerations:**
-- Sandbox Groovy execution (restrict System, File I/O access)
-- Set timeout for script execution (prevent infinite loops)
-- Validate script before execution (optional)
-
-**Error Handling:**
-- Script syntax error → GroovyException → ApplicationFailure
-- Runtime error → Wrap and propagate
-- Variable not found → NullPointerException → ApplicationFailure
-
-### 3. Branch Node Activity Implementation
-
-**BranchNodeNodeActivityImpl**
-- Dependencies: WorkflowContextHBService
-- Main method: `executeNode(ActivityRequest<BranchNode>): ActivityResponse`
-- Helper method: `evaluateConditions(...): String`
-
-**Execution Flow:**
-1. Prepare context wrapper with global context and enum store
-2. Iterate through choices in order
-3. Evaluate condition script using Groovy for each choice
-4. If condition is true, return next node ID (short-circuit evaluation)
-5. If no condition matched, return default node
-
-**Optimization:**
-- Short-circuit evaluation (stop at first match)
-- Cache compiled Groovy scripts for reuse
-
-**Error Handling:**
-- Invalid condition script → Log error and use defaultNode
-- Missing defaultNode → ApplicationFailure
-
-### 4. Instruction Node Activity Implementation
-
-**InstructionNodeNodeActivityImpl**
-- Dependencies: WorkflowContextHBService
-- Main method: `executeNode(ActivityRequest<InstructionNode>): ActivityResponse`
-- Helper method: `buildInstructionView(...): View`
-
-**Execution Flow:**
-1. Extract instruction definition from node
-2. Resolve dynamic values in instruction using context (e.g., "Order #${orderId}")
-3. Build View object for UI rendering with resolved values
-4. Mark workflow status as WAITING_FOR_INPUT
-5. Return activity response with view data
-
-**Workflow Pause Behavior:**
-- Workflow enters WAITING state after instruction node
-- Client must call `resumeWorkflow()` with user input
-- User input is merged into workflow context under `_global`
-- Workflow state changes to RUNNING
-- Execution continues from next node
-
-**Resume Flow:**
-- `resumeWorkflow()` called with user selections
-- Input merged into context
-- Signal triggers workflow continuation
-- Next node executes with updated context
-
----
-
-## Algorithms & Logic
-
-### Workflow Execution Algorithm
-
-**MAIN WORKFLOW EXECUTION ALGORITHM**
-
-**Function:** `executeWorkflowNodes(workflow, currentNode, workflowId, threadContext)`
-
-**Initialization:**
-- Set workflowState = RUNNING
-- Initialize errorCount = 0
-- Define maxErrors = 10
-
-**Main Loop:**
-```
-WHILE (currentNode != null) DO
-  TRY:
-    1. Log node start
-    2. Execute node via nodeExecutor
-    3. Handle response based on status:
-       - RUNNING → Move to next node
-       - WAITING_FOR_INPUT → Pause workflow (exit loop)
-       - COMPLETED → Mark complete, exit loop
-       - FAILED → Mark failed, exit loop
-    4. Reset error count on success
-    
-  CATCH (Exception):
-    5. Log error and increment error count
-    6. If errorCount > maxErrors → Fail workflow
-    7. Jump to failure node if available
-    8. Otherwise, fail workflow
-END WHILE
-```
-
-**Finalization:**
-- Execute post-workflow completion nodes (optional)
-- Update final workflow state
-- Log completion
-
-**Complexity:**
-- Time: O(n) where n = number of nodes
-- Space: O(1) constant memory (context in HBase)
-
-### Dynamic Value Resolution Algorithm
-
-**FUNCTION:** `resolveValue(template, context)`
-
-**Purpose:** Resolve Mustache/Groovy templates in configuration strings
-
-**Template Types:**
-1. **Groovy**: `${...}` syntax - e.g., `${_global.orderId}`
-2. **Mustache**: `{{...}}` syntax - e.g., `{{orderId}}`
-
-**Algorithm Steps:**
-1. Detect template type by pattern
-2. Extract all placeholders from template
-3. For each placeholder:
-   - Extract expression
-   - Evaluate using context
-   - Replace in template
-4. Handle nested resolution (inner expressions first)
-5. Return resolved string
-
-**Example:**
-```
-Input: "https://api.example.com/orders/${_global.orderId}"
-Context: {_global: {orderId: "12345"}}
-Output: "https://api.example.com/orders/12345"
-```
-
-**Error Handling:**
-- Variable not found → Return placeholder or throw exception
-- Invalid syntax → Return original template
-- Cyclic reference → Detect and throw exception
-
-**Complexity:**
-- Time: O(p * e) where p = placeholders, e = evaluation cost
-- Space: O(p) for storing placeholders
-
----
-
 ## Data Structures
 
 ### Workflow Context Structure
+
+The workflow context is a JSON object that maintains the state of a workflow execution. It consists of two main sections:
+
+*   **`_global`**: Contains the running context of the workflow. It stores the output of each executed node, keyed by the node's instance name (e.g., `"node002"`). This data persists throughout the workflow's lifecycle and is accessible by subsequent nodes for decision-making or data transformation.
+*   **`_enum_store`**: Loads and maintains access to all defined lookup keys (ex: service VIPs, configs etc.) required by the workflow. This ensures consistent access to static values across the workflow execution.
 
 ```json
 {
@@ -376,14 +41,14 @@ Output: "https://api.example.com/orders/12345"
     },
     "orderDetail": {
       "orderId": "ORD-789",
-      "amount": 1500.00,
-      "items": [...]
+      "amount": 1500.00
     },
-    "node001:httpResponse": {
-      "statusCode": 200,
-      "body": {...}
-    },
-    "node002:processedData": {
+     "return_possible_options_view:viewResponse": {
+        "selectedOptions": {
+           "possible_actions": "REFUND"
+        }
+     },
+    "node002": {
       "refundAmount": 1500.00,
       "refundMethod": "BANK"
     }
@@ -391,13 +56,7 @@ Output: "https://api.example.com/orders/12345"
   "_enum_store": {
     "ISSUE_TYPES": ["REFUND", "REPLACEMENT", "CANCELLATION"],
     "STATUS_CODES": ["NEW", "IN_PROGRESS", "COMPLETED"],
-    "REFUND_METHODS": ["BANK", "WALLET", "CARD"]
-  },
-  "_metadata": {
-    "createdAt": "2025-11-21T10:00:00Z",
-    "lastUpdatedAt": "2025-11-21T10:05:30Z",
-    "currentNode": "node003",
-    "executedNodes": ["node001", "node002"]
+    "OMS_VIP": "127.0.0.1"
   }
 }
 ```
@@ -490,121 +149,11 @@ DESIGN CONSIDERATIONS:
 
 ## Sequence Diagrams
 
-### Workflow Start Sequence
+### Workflow Start & Resume Sequence
 
-```
-Client    API Service   TemporalService   Temporal      Worker     HBase
-  │             │              │           Cluster        │          │
-  │─POST────────>│              │              │          │          │
-  │/workflow/   │              │              │          │          │
-  │start        │              │              │          │          │
-  │             │──validate──> │              │          │          │
-  │             │   request    │              │          │          │
-  │             │              │──start────> │          │          │
-  │             │              │  workflow   │          │          │
-  │             │              │             │          │          │
-  │             │              │             │─add to───>│          │
-  │             │              │             │ task queue│          │
-  │             │<─return──────│             │          │          │
-  │             │  workflowId  │             │          │          │
-  │<─200 OK─────│              │             │          │          │
-  │{workflowId} │              │             │          │          │
-  │             │              │             │          │          │
-  │             │              │             │          │─poll────>│
-  │             │              │             │          │ queue    │
-  │             │              │             │<─────────┤          │
-  │             │              │             │ workflow │          │
-  │             │              │             │   task   │          │
-  │             │              │             │          │          │
-  │             │              │             │          │──persist─>│
-  │             │              │             │          │ initial  │
-  │             │              │             │          │ context  │
-  │             │              │             │          │<─────────┤
-  │             │              │             │          │          │
-  │             │              │             │          │──fetch───>│
-  │             │              │             │          │ workflow │
-  │             │              │             │          │   DSL    │
-  │             │              │             │          │<─────────┤
-  │             │              │             │          │          │
-  │             │              │             │          │          │
-  │             │              │             │          │─execute──>│
-  │             │              │             │          │  nodes   │
-  │             │              │             │          │<─────────┤
-  │             │              │             │<─────────┤          │
-  │             │              │             │ complete │          │
-  │             │              │             │          │          │
-
-Timeline:
-  t0: Client sends request
-  t1: API validates and starts workflow (returns immediately)
-  t2: Worker polls and receives workflow task
-  t3: Worker executes workflow logic
-  t4: Worker completes execution
-
-Total latency from client perspective: ~50-100ms (just workflow start)
-Actual execution happens asynchronously in worker
-```
-
-### Node Execution Sequence (HTTP Node)
-
-```
-Worker     NodeExecutor  HttpActivity  GroovyTranslator  HttpExecutor  ExternalAPI  HBase
-  │             │              │              │               │             │          │
-  │──execute───>│              │              │               │             │          │
-  │   node      │              │              │               │             │          │
-  │             │──fetch────> │              │               │             │          │
-  │             │  node def   │              │               │             │          │
-  │             │<───────────┤              │               │             │          │
-  │             │             │              │               │             │          │
-  │             │──create────>│              │               │             │          │
-  │             │  activity   │              │               │             │          │
-  │             │  stub       │              │               │             │          │
-  │             │             │              │               │             │          │
-  │             │──execute───>│              │               │             │          │
-  │             │   HTTP      │              │               │             │          │
-  │             │   activity  │──resolve────>│               │             │          │
-  │             │             │  URL/headers │               │             │          │
-  │             │             │<─────────────┤               │             │          │
-  │             │             │  (evaluated) │               │             │          │
-  │             │             │              │               │             │          │
-  │             │             │──get────────────────────────>│             │          │
-  │             │             │  executor    │               │             │          │
-  │             │             │<─────────────────────────────┤             │          │
-  │             │             │              │               │             │          │
-  │             │             │──execute────────────────────>│             │          │
-  │             │             │  HTTP call   │               │──POST────> │          │
-  │             │             │              │               │            │          │
-  │             │             │              │               │<─response──┤          │
-  │             │             │<─────────────────────────────┤            │          │
-  │             │             │  httpResponse│               │            │          │
-  │             │             │              │               │            │          │
-  │             │             │──transform──>│               │            │          │
-  │             │             │  response    │               │            │          │
-  │             │             │<─────────────┤               │            │          │
-  │             │             │  (transformed)               │            │          │
-  │             │             │                              │            │          │
-  │             │             │──persist────────────────────────────────────────────>│
-  │             │             │  context     │               │            │          │
-  │             │             │<─────────────────────────────────────────────────────┤
-  │             │             │              │               │            │          │
-  │             │<────────────┤              │               │            │          │
-  │             │  response   │              │               │            │          │
-  │<────────────┤             │              │               │            │          │
-  │  result     │             │              │               │            │          │
-
-Timeline:
-  t0: Worker requests node execution
-  t1-t2: Fetch node definition (cache hit: ~5ms)
-  t3-t4: Resolve URL/headers using Groovy (~10ms)
-  t5-t6: Execute HTTP call (~50-200ms depending on external API)
-  t7-t8: Transform response (~10ms)
-  t9-t10: Persist context to HBase (~20ms)
-
-Total: ~100-250ms per HTTP node
-```
+> **Note**: The above design illustrates the sync mode of workflow interaction. Drift also supports an async mode, in which Redis Pub Sub is skipped and response is returned on a webhook, and the client is notified via webhook triggered at I/O or terminal nodes.
 
 ---
-
 ## Database Schema
 
 ### HBase Table Schemas
