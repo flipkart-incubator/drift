@@ -207,6 +207,38 @@ Terminates a running workflow.
 
 Retrieves the current state of a workflow (debugging/admin).
 
+### 2.5 Disconnected Nodes & Utility Executions
+
+**Endpoint**: `POST /v3/workflow/{workflowId}/disconnected-node/execute`
+
+Disconnected nodes are nodes defined within the workflow definition but are not part of the main execution path (i.e., no other node points to them via `nextNode`). They are used for utility operations that do not advance the workflow state.
+
+**Use Case:**
+A common scenario is performing repetitive validations or intermediate actions without moving the workflow forward. For example, in a bank account addition flow:
+1.  **Verify**: The user might try to verify a bank account multiple times (invalid account, wrong IFSC, etc.). This verification is handled by a disconnected "verify_account" node.
+2.  **No State Change**: Hitting this node executes the logic (e.g., API call to bank) and returns the result but keeps the workflow in its current state (e.g., waiting at the "Add Account" screen).
+3.  **Resume**: Once verification is successful, the client calls the standard `resume` endpoint to move the workflow to the next step (e.g., "submit_account").
+
+#### Request Body
+
+```java
+public class WorkflowUtilityRequest extends WorkflowRequest {
+    @NotNull private String node; // The name of the disconnected node to execute
+    private Map<String, Object> parameters; // Parameters specific to this execution
+}
+```
+
+#### Response Body
+
+```java
+public class WorkflowUtilityResponse implements Serializable {
+    private String workflowId;
+    private String node;
+    private WorkflowUtilityStatus status; // e.g., COMPLETED, FAILED
+    private Object response; // The output of the executed node
+}
+```
+
 ---
 
 ## 5. Widgetized Response Model
@@ -295,14 +327,27 @@ For cascading selections (e.g., City -> Locality):
 
 ## 6. Client Responsibilities
 
-### 6.1 UI Rendering
+Drift supports both human-driven and machine-driven workflows. The responsibilities of the client differ based on the integration mode.
+
+### 6.1 Integration Modes
+
+**1. User-Interactive (Human-in-the-loop)**
+When the workflow is intended for a human user (e.g., a Customer Support Agent), the client **must** implement a UI renderer. The client interprets the `View` response to generate the interface, allowing the user to read instructions and make selections.
+
+**2. Systematic Integration (Context-Aware Caller)**
+When the caller is another system or service (e.g., a chatbot backend or an automated job), no UI rendering is required.
+*   The caller is "context-aware"—it knows which workflow it is running and what data is expected next.
+*   The `view` / `widgets` section of the response can be ignored.
+*   The client programmatically constructs the `resume` request based on its own internal logic.
+
+### 6.2 UI Rendering (For User-Interactive Mode)
 Clients must implement a renderer that:
 1. **Reads** `View.layoutId` to determine screen structure.
 2. **Iterates** `inputOptions`.
 3. **Maps** `tags.values` to native UI components (React component, Android View, etc.).
 4. **Displays** `possibleValues` as choices.
 
-### 6.2 Resume Logic
+### 6.3 Resume Logic
 When interacting with widgets:
 1. Collect user input for each widget `id`.
 2. Construct `ViewResponse`:
@@ -316,7 +361,7 @@ When interacting with widgets:
    ```
 3. Call `PUT /v3/workflow/resume/{id}`.
 
-### 6.3 Template Interpolation
+### 6.4 Template Interpolation
 `Instruction` objects contain `templateId` and `variables`. Clients should look up localized strings from their CMS/ResourceBundle and interpolate the variables before display.
 
 ---

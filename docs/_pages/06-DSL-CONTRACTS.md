@@ -47,10 +47,10 @@ public class WorkflowNode {
 
 ### 1.2 Operations
 
-- **Create**: `POST /workflowDefinition/`
-- **Update**: `PUT /workflowDefinition/`
-- **Get**: `GET /workflowDefinition/{id}?version={version}`
-- **Publish**: `POST /workflowDefinition/{id}/publishWorkflow/` (Promotes SNAPSHOT -> Numbered Version)
+- **Create**: `POST /workflowDefinition/` (Creates initial mutable `SNAPSHOT`)
+- **Update**: `PUT /workflowDefinition/` (Updates existing `SNAPSHOT`)
+- **Get**: `GET /workflowDefinition/{id}?version={version}&enrichNodeDefinition={true|false}`
+- **Publish**: `POST /workflowDefinition/{id}/publishWorkflow/` (Finalizes `SNAPSHOT` → Immutable Numbered Version)
 - **Activate**: `POST /workflowDefinition/{id}/activate?version={v}` (Promotes Version -> ACTIVE)
 - **Visualize**: `GET /workflowDefinition/treeView/{id}` (Returns PNG graph)
 
@@ -99,10 +99,10 @@ public class InstructionNode extends NodeDefinition {
 
 ### 2.3 Operations
 
-- **Create**: `POST /nodeDefinition/`
-- **Update**: `PUT /nodeDefinition/`
+- **Create**: `POST /nodeDefinition/` (Creates initial mutable `SNAPSHOT`)
+- **Update**: `PUT /nodeDefinition/` (Updates existing `SNAPSHOT`)
 - **Get**: `GET /nodeDefinition/{id}`
-- **Publish**: `POST /nodeDefinition/{id}/publishNode/`
+- **Publish**: `POST /nodeDefinition/{id}/publishNode/` (Finalizes `SNAPSHOT` → Immutable Numbered Version)
 
 ---
 
