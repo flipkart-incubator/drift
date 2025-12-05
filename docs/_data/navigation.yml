@@ -1,0 +1,32 @@
+main:
+  - title: "Home"
+    url: /
+  - title: "Key Features"
+    url: /01-KEY-FEATURES/
+  - title: "Architecture Overview"
+    url: /03-ARCHITECTURE-OVERVIEW/
+  - title: "Contracts"
+    url: /06-CONTRACTS/
+
+docs:
+  - title: "Getting Started"
+    children:
+      - title: "Key Features"
+        url: /01-KEY-FEATURES/
+      - title: "Terminologies"
+        url: /02-TERMINOLOGIES/
+  - title: "Architecture & Design"
+    children:
+      - title: "Architecture Overview"
+        url: /03-ARCHITECTURE-OVERVIEW/
+      - title: "High-Level Design"
+        url: /04-HIGH-LEVEL-DESIGN/
+      - title: "Low-Level Design"
+        url: /05-LOW-LEVEL-DESIGN/
+  - title: "Technical Details"
+    children:
+      - title: "Contracts"
+        url: /06-CONTRACTS/
+      - title: "Redis Pub/Sub"
+        url: /07-REDIS-PUBSUB/
+

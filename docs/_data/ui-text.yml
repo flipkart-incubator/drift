@@ -1,0 +1,82 @@
+# Minimal Mistakes UI Text
+# https://mmistakes.github.io/minimal-mistakes/docs/configuration/#ui-text
+
+# Site Header
+site_title: "Drift Platform Documentation"
+site_tagline: "Temporal-powered workflow orchestration platform"
+
+# Navigation
+nav_label: "Navigation"
+nav_home: "Home"
+nav_menu: "Menu"
+nav_search: "Search"
+nav_close: "Close"
+
+# Breadcrumbs
+breadcrumb_home_label: "Home"
+breadcrumb_separator: "/"
+
+# Pagination
+pagination_previous: "Previous"
+pagination_next: "Next"
+pagination_older: "Older Posts"
+pagination_newer: "Newer Posts"
+
+# Post/Page Meta
+meta_label: "Posted:"
+meta_label_prefix: "on"
+meta_date_format: "%B %d, %Y"
+meta_read_time: "read"
+meta_minute_read: "minute read"
+meta_minutes_read: "minutes read"
+
+# Comments
+comments_label: "Comments"
+comments_title: "Comments"
+comments_name_label: "Name"
+comments_email_label: "Email"
+comments_website_label: "Website"
+comments_message_label: "Message"
+comments_submit_label: "Submit Comment"
+comments_submit_label_loading: "Submitting..."
+
+# Footer
+footer_label: "Footer"
+footer_text: "Drift Platform Documentation"
+footer_copyright: "Copyright"
+footer_copyright_text: "© {year} Drift Platform Team. All rights reserved."
+
+# Search
+search_label: "Search"
+search_placeholder: "Enter search term..."
+search_no_results: "Sorry, nothing matched that search."
+search_found: "found"
+search_found_plural: "found"
+search_results: "result"
+search_results_plural: "results"
+
+# Related Posts
+related_label: "You may also enjoy"
+related_posts: "Related Posts"
+
+# Share
+share_on_label: "Share on"
+share_on: "Share on"
+share_twitter: "Twitter"
+share_facebook: "Facebook"
+share_linkedin: "LinkedIn"
+share_reddit: "Reddit"
+
+# Subscribe
+subscribe_label: "Subscribe"
+subscribe_email_label: "Email address"
+subscribe_email_placeholder: "your.email@example.com"
+subscribe_submit_label: "Subscribe"
+
+# TOC
+toc_label: "Table of Contents"
+toc_skip: "Skip to content"
+
+# Back to Top
+back_to_top: "Back to Top"
+
