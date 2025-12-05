@@ -103,7 +103,8 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
                 configuration.getHbasePropertiesPath(),
                 configuration.getLookupPropertiesPath(),
                 configuration.getAuthPropertiesPath(),
-                configuration.getAbPropertiesPath()
+                configuration.getAbPropertiesPath(),
+                configuration.getWorkflowPropertiesPath()
         );
         ConcurrentCompositeConfiguration compositeConfiguration =
                 new ConcurrentCompositeConfiguration();

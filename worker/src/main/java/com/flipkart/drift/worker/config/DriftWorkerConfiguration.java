@@ -24,6 +24,8 @@ public class DriftWorkerConfiguration extends Configuration {
     @NotNull
     private String hbasePropertiesPath;
     @NotNull
+    private String workflowPropertiesPath;
+    @NotNull
     private String lookupPropertiesPath;
     @NotNull
     private String temporalFrontEnd;

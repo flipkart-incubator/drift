@@ -40,6 +40,8 @@ abPropertiesPath: ${AB_CONFIG_BUCKET}
 
 authPropertiesPath: ${AUTH_PATH}
 
+workflowPropertiesPath: ${WORKFLOW_PROPERTY_PATH}
+
 prometheusConfig:
   port: 9090
   path: "/metrics"
