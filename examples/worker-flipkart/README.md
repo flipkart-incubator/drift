@@ -13,7 +13,6 @@ This guide helps you create your own custom worker implementation with organizat
 5. [Local Testing in IntelliJ](#local-testing-in-intellij)
 6. [Docker Packaging](#docker-packaging)
 7. [Deployment](#deployment)
-8. [Troubleshooting](#troubleshooting)
 
 ---
 
