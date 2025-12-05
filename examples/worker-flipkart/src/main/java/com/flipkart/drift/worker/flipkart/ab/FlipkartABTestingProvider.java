@@ -1,22 +1,20 @@
 package com.flipkart.drift.worker.flipkart.ab;
 
-import com.flipkart.abservice.models.request.ABExperimentRequest;
+import com.flipkart.abservice.ABRequest;
 import com.flipkart.drift.sdk.spi.ab.ABTestingProvider;
-import com.flipkart.abservice.models.response.ABVariableResponse;
-import com.flipkart.abservice.pojo.UserID;
-import com.flipkart.abservice.resources.ABService;
-import com.flipkart.abservice.store.impl.ABApiConfigStore;
+import com.flipkart.abservice.ABResponse;
+import com.flipkart.abservice.UserID;
+import com.flipkart.abservice.ABService;
+import com.flipkart.abservice.ABConfigService;
 import com.netflix.config.DynamicProperty;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
 /**
- * Flipkart-specific implementation of ABTestingProvider.
+ * Sample of ABTestingProvider. For reference only.
  *
  * NOTE: This implementation depends on internal Flipkart libraries.
- * This class is in a separate module (worker-flipkart) that can be excluded
- * from public distributions.
  */
 @Slf4j
 public class FlipkartABTestingProvider implements ABTestingProvider {
@@ -46,7 +44,7 @@ public class FlipkartABTestingProvider implements ABTestingProvider {
             
             log.info("Initializing Flipkart ABService with tenant: {}, endpoint: {}", tenantId, endpoint);
             
-            ABApiConfigStore configStore = ABApiConfigStore.initialize(tenantId, endpoint, secret);
+            ABConfigService configStore = ABConfigService.initialize(tenantId, endpoint, secret);
             ABService.initialize(configStore);
 
             if (abClientId == null || abClientId.trim().isEmpty()) {
@@ -88,10 +86,9 @@ public class FlipkartABTestingProvider implements ABTestingProvider {
 
     /**
      * Check if a customer is in the treatment group for an experiment.
-     * Includes metrics tracking and error handling.
      */
     private boolean isCustomerInTreatment(String userId, String experimentName, String variableName) {
-        ABVariableResponse abResponse = getABV2Response(userId, experimentName);
+        ABResponse abResponse = getABV2Response(userId, experimentName);
         if (abResponse != null && abResponse.getAbId() != null) {
             Map<String, Object> abVariable = abResponse.getAllVariables();
             Boolean variableValue = (Boolean) abVariable.get(variableName);
@@ -100,13 +97,10 @@ public class FlipkartABTestingProvider implements ABTestingProvider {
         return false;
     }
 
-    /**
-     * Get AB response from Flipkart ABService with metrics tracking.
-     */
-    private ABVariableResponse getABV2Response(String userId, String experimentName) {
+    private ABResponse getABV2Response(String userId, String experimentName) {
         try {
             UserID userID = new UserID(userId, null);
-            ABExperimentRequest abRequest = new ABExperimentRequest(userID, experimentName);
+            ABRequest abRequest = new ABRequest(userID, experimentName);
             abRequest.setClientID(abClientId);
             return ABService.getInstance().getABVariables(abRequest);
         } catch (Exception e) {

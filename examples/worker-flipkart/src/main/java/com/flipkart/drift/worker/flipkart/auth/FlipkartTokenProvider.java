@@ -1,17 +1,12 @@
 package com.flipkart.drift.worker.flipkart.auth;
 
 import com.flipkart.drift.sdk.spi.auth.TokenProvider;
-import com.flipkart.kloud.authn.AuthTokenService;
+import com.flipkart.authn.AuthTokenService;
 import com.netflix.config.DynamicProperty;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Flipkart-specific implementation of TokenProvider.
- * Uses Flipkart's internal AuthTokenService for authentication.
- * 
- * NOTE: This implementation depends on internal Flipkart libraries.
- * This class is in a separate module (worker-flipkart) that can be excluded
- * from public distributions.
+ * Sample of TokenProvider implementaion. For reference only.
  */
 @Slf4j
 public class FlipkartTokenProvider implements TokenProvider {
