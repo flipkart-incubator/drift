@@ -19,19 +19,6 @@
 
     <repositories>
         <repository>
-            <snapshots>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-            <id>fk-jfrog-snapshot</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-        <repository>
-            <id>fk-jfrog-release</id>
-            <name>Flipkart-Artifactory</name>
-            <url>https://jfrog.fkinternal.com/artifactory/maven_virtual</url>
-        </repository>
-        <repository>
             <id>central</id>
             <name>Maven Central</name>
             <url>https://repo1.maven.org/maven2/</url>
@@ -50,7 +37,7 @@
     </repositories>
 
     <dependencies>
-        <!-- Only dependency on public SDK for SPI interfaces -->
+        <!-- Only dependency on public SDK for SPI interfaces. Pick latest version -->
         <dependency>
             <groupId>com.flipkart.drift</groupId>
             <artifactId>java-sdk</artifactId>
@@ -63,19 +50,19 @@
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.flipkart</groupId>
-            <artifactId>ablibrary</artifactId>
-            <scope>compile</scope>
-            <version>4.1.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.flipkart</groupId>-->
+<!--            <artifactId>xxx</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--            <version>xxx</version>-->
+<!--        </dependency>-->
 
         <!-- Flipkart AuthN (internal dependency) -->
-        <dependency>
-            <groupId>com.flipkart.kloud.config</groupId>
-            <artifactId>client-java</artifactId>
-            <version>1.5.9</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.flipkart</groupId>-->
+<!--            <artifactId>xxx</artifactId>-->
+<!--            <version>xxx</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.netflix.archaius</groupId>
             <artifactId>archaius-core</artifactId>

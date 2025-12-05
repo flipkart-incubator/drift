@@ -48,23 +48,6 @@ WorkflowRouter.getVersion(workflowId, customerId)
   → Returns: true (treatment) or false (control)
   → Executes corresponding workflow version
 ```
-
-#### **3. Custom Metrics, Logging, or Observability**
-- Integrate with your APM (DataDog, NewRelic, etc.)
-- Custom distributed tracing
-- Organization-specific audit logging
-
-#### **4. Custom Data Access or Caching**
-- Connect to organization-specific databases
-- Custom cache implementations
-- Internal data stores
-
-### **When NOT to Create a Custom Worker:**
-
-❌ **For workflow logic changes** → Use workflow definitions in HBase  
-❌ **For configuration changes** → Use config files and environment variables  
-❌ **For simple customizations** → Check if existing extension points suffice  
-
 ---
 
 ## Module Structure
@@ -81,15 +64,15 @@ worker-<your-org>/
 │   │   ├── java/
 │   │   │   └── com/<your-org>/drift/worker/<org>/
 │   │   │       ├── ab/
-│   │   │       │   └── CustomABTestingProvider.java
+│   │   │       │   └── CustomABTestingProvider.java #(Optional)
 │   │   │       └── auth/
-│   │   │           └── CustomTokenProvider.java
+│   │   │           └── CustomTokenProvider.java #(Optional)
 │   │   └── resources/
 │   │       ├── META-INF/
-│   │       │   └── services/           # SPI registration files
+│   │       │   └── services/           # SPI registration files #(Optional)
 │   │       │       ├── com.flipkart.drift.sdk.spi.ab.ABTestingProvider
 │   │       │       └── com.flipkart.drift.sdk.spi.auth.TokenProvider
-│   │       └── scripts/                # Custom Groovy scripts (optional)
+│   │       └── scripts/                # Custom Groovy scripts (optional), this contains the groovy scripts referred by the node specs
 │   │           └── custom-script.groovy
 │   └── test/
 │       └── java/
@@ -99,7 +82,7 @@ worker-<your-org>/
 
 ### **Key Principles:**
 
-1. **Standalone Module** - No parent POM dependency on drift-parent
+1. **Standalone Module** - No dependency on base worker
 2. **Minimal Dependencies** - Only depend on `java-sdk` (provided scope)
 3. **Organization Isolation** - Use your org's package naming
 4. **SPI-based** - Integration via Service Provider Interface pattern
@@ -702,33 +685,6 @@ INFO  YourOrgABTestingProvider: YourOrgABTestingProvider initialized successfull
 - `NoClassDefFoundError` → Missing dependency or need to exclude common lib
 - `NoSuchMethodError` → Version conflict, may need package relocation
 
-### **Debugging Tips:**
-
-#### **Check Classpath Order:**
-```java
-// Add this temporarily to your provider's constructor:
-System.out.println("Classpath: " + 
-    System.getProperty("java.class.path"));
-```
-
-#### **Verify SPI Files:**
-```bash
-# Check if SPI file is in JAR
-jar tf target/worker-yourorg-1.0.0.jar | grep META-INF/services
-
-# Check content
-unzip -p target/worker-yourorg-1.0.0.jar \
-  META-INF/services/com.flipkart.drift.sdk.spi.auth.TokenProvider
-```
-
-#### **Check for Conflicts:**
-```bash
-# List all classes in your JAR
-jar tf target/worker-yourorg-1.0.0.jar | grep -E "(jackson|snakeyaml|metrics)"
-
-# Should be empty or relocated if you're excluding correctly
-```
-
 ---
 
 ## Docker Packaging
@@ -749,7 +705,7 @@ RUN mkdir -p /usr/share/drift-worker/extensions
 # - META-INF/services registration files
 COPY target/worker-yourorg-*.jar /usr/share/drift-worker/extensions/worker-yourorg.jar
 
-# (Optional) Copy custom Groovy scripts
+# (Optional) Copy custom Groovy scripts required by your node specs
 COPY src/main/resources/scripts/* /src/main/resources/scripts/
 
 # The base image already has ENTRYPOINT configured
@@ -815,70 +771,17 @@ docker tag <your-registry>/drift-worker-yourorg:1.0.0 \
 docker push <your-registry>/drift-worker-yourorg:1.0.0
 docker push <your-registry>/drift-worker-yourorg:latest
 ```
-
-### **Verifying the Docker Image**
-
-```bash
-# Check if extension JAR is present
-docker run --rm <your-registry>/drift-worker-yourorg:latest \
-  ls -lh /usr/share/drift-worker/extensions/
-
-# Check SPI files in extension JAR
-docker run --rm <your-registry>/drift-worker-yourorg:latest \
-  unzip -l /usr/share/drift-worker/extensions/worker-yourorg.jar | grep META-INF/services
-
-# Check if your implementation classes are present
-docker run --rm <your-registry>/drift-worker-yourorg:latest \
-  unzip -l /usr/share/drift-worker/extensions/worker-yourorg.jar | grep YourOrgTokenProvider
-```
-
 ---
 
 ## Deployment
 
 ### **Using Helm Charts**
 
-Once your Docker image is built and pushed, deploy using the Helm charts provided in the `drift-helm/` directory.
+Once your Docker image is built and pushed, deploy using the Helm charts provided in the `package/helm-chart/worker` directory.
 
-**Reference:** See `../drift-helm/worker/` for complete Helm chart documentation.
+**Reference:** Refer `docs` for complete Helm chart documentation.
 
-### **Quick Deployment Steps:**
 
-```bash
-# 1. Update values.yaml with your image
-cat > custom-values.yaml <<EOF
-image:
-  registry: <your-registry>
-  repository: drift-worker-yourorg
-  tag: 1.0.0
-  pullPolicy: IfNotPresent
-
-# Add your organization-specific environment variables
-env:
-  # ... standard worker env vars ...
-  
-  # Your custom provider configs
-  AUTH_SERVICE_URL: "https://auth.yourorg.com"
-  AUTH_CLIENT_ID: "drift-worker"
-  AUTH_CLIENT_SECRET: "your-secret"
-  
-  EXPERIMENT_SERVICE_URL: "https://experiments.yourorg.com"
-  EXPERIMENT_API_KEY: "your-api-key"
-EOF
-
-# 2. Install/upgrade via Helm
-helm upgrade --install drift-worker \
-  ../drift-helm/worker/ \
-  -f custom-values.yaml \
-  --namespace drift-production
-
-# 3. Check deployment
-kubectl get pods -n drift-production | grep drift-worker
-kubectl logs -n drift-production deployment/drift-worker --tail=100
-
-# 4. Verify your providers are loaded
-kubectl logs -n drift-production deployment/drift-worker | grep "Discovered com.yourorg"
-```
 
 ### **Expected Logs on Successful Deployment:**
 
@@ -893,222 +796,4 @@ INFO  WorkerFactory: Worker started for task queue: DRIFT_QUEUE
 ```
 
 ---
-
-## Troubleshooting
-
-### **Problem: NoOp providers loaded instead of custom ones**
-
-**Symptom:**
-```
-INFO  TokenProviderFactory: Discovered NoOpTokenProvider via SPI
-```
-
-**Cause:** Classpath order is wrong.
-
-**Solution:**
-- **IntelliJ:** Move `worker-yourorg.jar` to TOP of classpath in run config
-- **Docker:** Verify entrypoint.sh puts `/extensions/*` before `/service/worker.jar`
-
-**Debug:**
-```bash
-# Check classpath order in running container
-docker exec <container-id> ps aux | grep java
-
-# Or in IntelliJ, add to your provider constructor:
-System.out.println(System.getProperty("java.class.path"));
-```
-
----
-
-### **Problem: NoClassDefFoundError for your dependencies**
-
-**Symptom:**
-```
-NoClassDefFoundError: com/yourorg/auth/AuthClient
-```
-
-**Cause:** Your dependency wasn't bundled in the JAR (excluded or wrong scope).
-
-**Solution:**
-1. Ensure dependency is `scope=compile` (default)
-2. Ensure it's NOT in the `<excludes>` list in shade plugin
-3. Rebuild and verify:
-```bash
-jar tf target/worker-yourorg-*.jar | grep "com/yourorg/auth"
-```
-
----
-
-### **Problem: NoSuchMethodError or IncompatibleClassChangeError**
-
-**Symptom:**
-```
-NoSuchMethodError: 'void org.yaml.snakeyaml.parser.ParserImpl.<init>(...)'
-```
-
-**Cause:** Version conflict - your library needs different version than base worker.
-
-**Solution:** Use package relocation in your POM:
-```xml
-<relocations>
-    <relocation>
-        <pattern>org.yaml.snakeyaml</pattern>
-        <shadedPattern>com.yourorg.drift.shaded.snakeyaml</shadedPattern>
-    </relocation>
-</relocations>
-```
-
-**Common libraries to relocate:**
-- `org.yaml.snakeyaml` (YAML parser)
-- `com.google.protobuf` (Protocol Buffers)
-- `org.apache.commons.io` (Commons IO)
-
----
-
-### **Problem: ServiceConfigurationError: Unable to get public no-arg constructor**
-
-**Symptom:**
-```
-ServiceConfigurationError: TokenProvider: YourOrgTokenProvider Unable to get public no-arg constructor
-```
-
-**Cause:** Your provider class is missing a public no-argument constructor.
-
-**Solution:** Add explicit constructor:
-```java
-public class YourOrgTokenProvider implements TokenProvider {
-    /**
-     * REQUIRED: Public no-arg constructor for ServiceLoader.
-     */
-    public YourOrgTokenProvider() {
-        // Leave empty - init happens in init() method
-    }
-    
-    // ... rest of your code
-}
-```
-
----
-
-### **Problem: Initialization fails with NullPointerException**
-
-**Symptom:**
-```
-NullPointerException at YourOrgTokenProvider.init()
-```
-
-**Cause:** Missing environment variables or configuration.
-
-**Solution:**
-1. Add validation in `init()`:
-```java
-@Override
-public void init() {
-    String authUrl = System.getenv("AUTH_SERVICE_URL");
-    if (authUrl == null) {
-        throw new IllegalStateException(
-            "AUTH_SERVICE_URL environment variable is required"
-        );
-    }
-    // ... continue initialization
-}
-```
-
-2. Verify environment variables in deployment:
-```bash
-kubectl describe pod <pod-name> -n drift-production | grep -A 20 "Environment:"
-```
-
----
-
-### **Problem: Multiple SLF4J bindings warning**
-
-**Symptom:**
-```
-SLF4J: Multiple bindings were found on the classpath
-```
-
-**Cause:** Your extension JAR includes SLF4J implementation (logback/log4j).
-
-**Solution:** Exclude SLF4J from your shade plugin:
-```xml
-<artifactSet>
-    <excludes>
-        <exclude>org.slf4j:*</exclude>
-        <exclude>ch.qos.logback:*</exclude>
-    </excludes>
-</artifactSet>
-```
-
----
-
-### **Problem: Worker starts but providers not called**
-
-**Symptom:** Worker runs but your custom logic never executes.
-
-**Debug Steps:**
-1. Add logging in your provider methods:
-```java
-@Override
-public String getAuthToken(String targetServiceId) {
-    log.info("YourOrgTokenProvider.getAuthToken called for: {}", targetServiceId);
-    // ... your logic
-}
-```
-
-2. Check if HTTP nodes are configured to use auth:
-   - Verify workflow definitions have `requiresAuth: true`
-   - Check HTTP node configuration
-
-3. For A/B testing, verify:
-   - Workflow has A/B config in HBase
-   - Experiment is active
-   - Test with a pivot value that should be in treatment
-
----
-
-## Summary
-
-You now have a complete guide to creating custom worker extensions! Here's your workflow:
-
-```
-1. Identify Integration Need
-   └─> Need custom auth or A/B testing?
-
-2. Create Module
-   ├─> Standalone POM with java-sdk dependency
-   ├─> Implement SPI interfaces
-   ├─> Register via META-INF/services
-   └─> Configure shade plugin with exclusions
-
-3. Test Locally
-   ├─> Build extension JAR
-   ├─> Configure IntelliJ classpath (extension first!)
-   └─> Verify providers discovered
-
-4. Package Docker Image
-   ├─> Dockerfile extends base drift-worker
-   ├─> Copies extension JAR to /extensions/
-   └─> Build and push to registry
-
-5. Deploy with Helm
-   ├─> Use drift-helm/worker charts
-   ├─> Update image and environment variables
-   └─> Verify in production logs
-```
-
-**For complete Helm deployment documentation, see:**
-- `../drift-helm/worker/README.md` - Worker Helm chart guide
-- `../drift-helm/worker/values.yaml` - Configuration reference
-- `../drift-helm/worker/templates/` - Kubernetes manifests
-
----
-
-## Need Help?
-
-- **SPI not working?** → Check classpath order and META-INF/services files
-- **Dependency conflicts?** → Review exclusions and consider package relocation
-- **Runtime errors?** → Check logs for initialization errors and environment variables
-- **Performance issues?** → Profile your provider implementations
-
 **Remember:** Your extension runs in the same JVM as the base worker. Keep it lightweight, handle errors gracefully, and log verbosely for debugging!

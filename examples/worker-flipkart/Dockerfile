@@ -1,5 +1,5 @@
 #BASE IMAGE - extends public drift-worker
-FROM jfrog.fkinternal.com/strowger/drift-worker:latest
+FROM drift-worker:latest
 
 # Create extensions directory
 RUN mkdir -p /usr/share/drift-worker/extensions
