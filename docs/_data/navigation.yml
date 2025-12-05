@@ -25,8 +25,12 @@ docs:
         url: /05-LOW-LEVEL-DESIGN/
   - title: "Technical Details"
     children:
-      - title: "Contracts"
-        url: /06-CONTRACTS/
-      - title: "Redis Pub/Sub"
-        url: /07-REDIS-PUBSUB/
+      - title: "DSL Contracts"
+        url: /06-DSL-CONTRACTS/
+      - title: "DSL Recipes"
+        url: /07-DSL-RECIPES/
+      - title: "API Contracts"
+        url: /08-API-CONTRACTS/
+      - title: "Interaction Modes"
+        url: /09-INTERACTION-MODES/
 
