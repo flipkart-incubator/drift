@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.flipkart.drift</groupId>
+    <artifactId>worker-flipkart</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Drift Worker - Flipkart Integration</name>
+    <description>Flipkart-specific implementations for Drift Worker (internal only)</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <name>Central Portal Snapshots</name>
+            <id>central-portal-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Only dependency on public SDK for SPI interfaces. Pick latest version -->
+        <dependency>
+            <groupId>com.flipkart.drift</groupId>
+            <artifactId>java-sdk</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.flipkart</groupId>-->
+<!--            <artifactId>xxx</artifactId>-->
+<!--            <scope>compile</scope>-->
+<!--            <version>xxx</version>-->
+<!--        </dependency>-->
+
+        <!-- Flipkart AuthN (internal dependency) -->
+<!--        <dependency>-->
+<!--            <groupId>com.flipkart</groupId>-->
+<!--            <artifactId>xxx</artifactId>-->
+<!--            <version>xxx</version>-->
+<!--        </dependency>-->
+        <dependency>
+            <groupId>com.netflix.archaius</groupId>
+            <artifactId>archaius-core</artifactId>
+            <version>0.7.12</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>17</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <!-- Exclude common libraries already in base worker -->
+                    <artifactSet>
+                        <excludes>
+                            <!-- Exclude Jackson - already in base worker -->
+                            <exclude>com.fasterxml.jackson.core:*</exclude>
+                            <exclude>com.fasterxml.jackson.datatype:*</exclude>
+                            <exclude>com.fasterxml.jackson.dataformat:*</exclude>
+                            <exclude>com.fasterxml.jackson.module:*</exclude>
+                            <!-- NOTE: We'll relocate snakeyaml for ablibrary to avoid conflicts with Dropwizard -->
+                            <!-- Exclude other common libs in base worker -->
+                            <exclude>com.google.guava:guava</exclude>
+                            <exclude>org.slf4j:*</exclude>
+                            <exclude>ch.qos.logback:*</exclude>
+                            <exclude>commons-lang:commons-lang</exclude>
+                            <exclude>commons-codec:commons-codec</exclude>
+                            <exclude>commons-logging:commons-logging</exclude>
+                            <exclude>commons-configuration:commons-configuration</exclude>
+                            <exclude>com.netflix.archaius:archaius-core</exclude>
+                            <exclude>commons-collections:commons-collections</exclude>
+                            <!-- Exclude HTTP clients - already in base worker -->
+                            <exclude>org.apache.httpcomponents:*</exclude>
+                            <!-- Exclude Codahale/Dropwizard Metrics - already in base worker -->
+                            <!-- NOTE: Keep com.yammer.metrics - it's needed by ablibrary and doesn't conflict -->
+                            <exclude>com.codahale.metrics:*</exclude>
+                            <exclude>io.dropwizard.metrics:*</exclude>
+                            <exclude>io.dropwizard:dropwizard-metrics</exclude>
+                            <!-- Exclude java-sdk (provided scope, already in base) -->
+                            <exclude>com.flipkart.drift:java-sdk</exclude>
+                        </excludes>
+                    </artifactSet>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <!-- Relocate SnakeYAML to avoid conflict with Dropwizard's version -->
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.yaml.snakeyaml</pattern>
+                                    <shadedPattern>com.flipkart.drift.shaded.snakeyaml</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
