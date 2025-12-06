@@ -9,20 +9,20 @@ author_profile: false
 ## Quick Start
 
 ### For Developers
-1. Read [Architecture Overview](/03-ARCHITECTURE-OVERVIEW/) to understand the system
-2. Review [High-Level Design](/04-HIGH-LEVEL-DESIGN/) for component design
-3. Study [Contracts](/06-CONTRACTS/) for integration details
+1. Read [Architecture Overview](_pages/03-ARCHITECTURE-OVERVIEW.md) to understand the system
+2. Review [High-Level Design](_pages/04-HIGH-LEVEL-DESIGN.md) for component design
+3. Study [Contracts](_pages/06-DSL-CONTRACTS.md) for integration details
 
 ### For Architects
-1. Start with [Architecture Overview](/03-ARCHITECTURE-OVERVIEW/)
-2. Deep dive into [High-Level Design](/04-HIGH-LEVEL-DESIGN/)
-3. Review [Low-Level Design](/05-LOW-LEVEL-DESIGN/) for implementation details
+1. Start with [Architecture Overview](_pages/03-ARCHITECTURE-OVERVIEW.md)
+2. Deep dive into [High-Level Design](_pages/04-HIGH-LEVEL-DESIGN.md)
+3. Review [Low-Level Design](_pages/05-LOW-LEVEL-DESIGN.md) for implementation details
 
 ## Documentation Structure
 
 ### Getting Started
-- **[Key Features](/01-KEY-FEATURES/)** - Overview of platform capabilities
-- **[Terminologies](/02-TERMINOLOGIES/)** - Core concepts and definitions
+- **[Key Features](_pages/01-KEY-FEATURES.md)** - Overview of platform capabilities
+- **[Terminologies](_pages/02-TERMINOLOGIES.md)** - Core concepts and definitions
 
 ## Key Features
 
