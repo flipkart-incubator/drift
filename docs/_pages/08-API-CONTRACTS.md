@@ -1,6 +1,6 @@
 ---
 title: "Contracts"
-permalink: /07-API-CONTRACTS/
+permalink: /08-API-CONTRACTS/
 layout: single
 sidebar:
   nav: "docs"
