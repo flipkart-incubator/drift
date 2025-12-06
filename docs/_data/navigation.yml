@@ -5,8 +5,10 @@ main:
     url: /01-KEY-FEATURES/
   - title: "Architecture Overview"
     url: /03-ARCHITECTURE-OVERVIEW/
-  - title: "Contracts"
-    url: /06-CONTRACTS/
+  - title: "DSL Contracts"
+    url: /06-DSL-CONTRACTS/
+  - title: "API Contracts"
+    url: /08-API-CONTRACTS/
 
 docs:
   - title: "Getting Started"
