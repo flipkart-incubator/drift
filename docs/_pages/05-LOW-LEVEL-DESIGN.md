@@ -9,10 +9,52 @@ sidebar:
 # Drift Platform - Low-Level Design (LLD)
 
 ## Table of Contents
-1. [Data Structures](#data-structures)
-2. [Sequence Diagrams](#sequence-diagrams)
-3. [Database Schema](#database-schema)
-4. [Configuration Management](#configuration-management)
+1. [Code Structure & Modules](#code-structure--modules)
+2. [Data Structures](#data-structures)
+3. [Sequence Diagrams](#sequence-diagrams)
+4. [Database Schema](#database-schema)
+5. [Configuration Management](#configuration-management)
+
+---
+## Code Structure & Modules
+
+The project is organized as a multi-module Maven project, designed to separate public contracts, shared internal logic, and service implementations.
+
+### 1. Java SDK (`java-sdk`)
+**Purpose**: A lightweight, purely functional library containing public contracts and Service Provider Interfaces (SPIs). This module allows clients to interact with Drift and developers to build extensions without pulling in heavy service dependencies.
+*   **Contracts**: Request/Response models (`WorkflowStartRequest`, `WorkflowResponse`, `WorkflowUtilityRequest`).
+*   **SPIs**: Interfaces for extending platform capabilities.
+    *   `TokenProvider`: Interface for injecting authentication tokens into HTTP nodes.
+    *   `ABTestingProvider`: Interface for resolving A/B testing experiments.
+*   **Factories**: Thread-safe factories (`TokenProviderFactory`, `ABTestingProviderFactory`) that use `ServiceLoader` to discover implementations at runtime.
+
+### 2. Commons (`commons`)
+**Purpose**: The shared internal core containing domain models, business logic for node types, and the persistence layer.
+*   **Domain Models**: Core definitions for `Workflow`, `NodeDefinition`, and `WorkflowState`.
+*   **Node Implementations**: Class hierarchy for all node types:
+    *   `HttpNode`: HTTP API call configuration.
+    *   `GroovyNode`: Dynamic script execution.
+    *   `BranchNode`: Conditional routing logic.
+    *   `InstructionNode`: UI/Widget definitions.
+*   **Persistence Layer**: (Merged from `hbase-entities`)
+    *   **Entities**: `WorkflowHB`, `NodeHB`, `WorkflowContextHB`.
+    *   **DAOs**: `AbstractEntityDao` and concrete implementations for HBase access.
+
+### 3. API Service (`api`)
+**Purpose**: The RESTful gateway to the platform, built using Dropwizard.
+*   **Resources**: JAX-RS resources exposing endpoints (`WorkflowResource`, `NodeDefinitionResource`, `WorkflowDefinitionResource`).
+*   **Services**: `TemporalService` which acts as the bridge between REST requests and Temporal workflow stubs.
+*   **Validation**: Request validation logic using Hibernate Validator.
+
+### 4. Worker Service (`worker`)
+**Purpose**: The execution engine running as a Temporal Worker.
+*   **Workflow Implementation**: `GenericWorkflowImpl` - the main state machine that traverses the workflow graph.
+*   **Activities**: Discrete units of work corresponding to node types:
+    *   `HttpNodeActivityImpl`: Executes HTTP requests.
+    *   `GroovyNodeActivityImpl`: Compiles and runs Groovy scripts.
+    *   `InstructionNodeActivityImpl`: Processes instruction nodes.
+*   **Executors**: `WorkflowNodeExecutor` manages the transition logic between nodes.
+*   **SPI Loading**: Bootstraps the `java-sdk` factories to load any present extensions (e.g., `worker-flipkart`).
 
 ---
 ## Data Structures
@@ -358,4 +400,4 @@ temporalFrontEnd: ${TEMPORAL_FRONTEND}
 
 ---
 
-**Next**: [API Contracts](/06-CONTRACTS/)
+**Next**: [API Contracts](/06-DSL-CONTRACTS/)

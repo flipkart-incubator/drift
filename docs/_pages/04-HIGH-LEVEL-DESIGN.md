@@ -10,7 +10,7 @@ sidebar:
 
 ## Table of Contents
 1. [System Overview](#system-overview)
-2. [Core Components](#core-components)
+2. [Core Services](#core-services)
 3. [Service Boundaries](#service-boundaries)
 4. [Deployment View](#deployment-view)
 
@@ -22,103 +22,29 @@ sidebar:
 > **Note**: The above design illustrates the sync mode of workflow interaction. Drift also supports an async mode, in which steps 2.b and 2.g are skipped, and the client is notified via webhook triggered at I/O or terminal nodes.
 
 ---
-## Core Components
+## Core Services
 
 ### 1. API Service (`api` module)
 
-**Purpose**: REST API layer for workflow orchestration management
+**Purpose**: The REST API layer that serves as the entry point for all external clients. It manages the lifecycle of workflows and definitions without executing business logic.
 
-**Responsibilities**:
-- Expose REST endpoints for workflow lifecycle operations
-- Communicate with Temporal cluster to start/resume/terminate workflows
-- Query workflow state and execution status
-- Manage workflow and node definitions (CRUD operations)
-
-**Key Classes**:
-- `DriftApplication`: Main application entry point (Dropwizard)
-- `WorkflowResource`: REST endpoints for workflow operations
-- `NodeDefinitionResource`: CRUD operations for node definitions
-- `WorkflowDefinitionResource`: CRUD operations for workflow definitions
-- `TemporalService`: Service layer for Temporal interactions
-
----
+**Key Responsibilities**:
+- **Orchestration Management**: Expose endpoints to start, resume, signal, and terminate workflows.
+- **Definition Management**: CRUD operations for Node and Workflow definitions.
+- **State Querying**: Fetch real-time status and context of running workflows.
+- **Authentication/Authorization**: First line of defense for client requests.
+- **Temporal Interaction**: Acts as a client to the Temporal cluster to dispatch commands.
 
 ### 2. Worker Service (`worker` module)
 
-**Purpose**: Temporal worker that executes workflow activities
+**Purpose**: The execution engine that processes workflow tasks. It runs the actual business logic, executes nodes, and manages side effects.
 
-**Responsibilities**:
-- Poll Temporal task queues for work
-- Execute workflow logic (GenericWorkflowImpl)
-- Execute node activities (HTTP, Groovy, Branch, etc.)
-- Manage workflow state and context
-- Handle workflow errors and retries
-
-**Key Classes**:
-- `WorkerApplication`: Main worker entry point (Dropwizard)
-- `GenericWorkflowImpl`: Core workflow execution implementation
-- `WorkflowNodeExecutor`: Orchestrates node execution
-- `TemporalWorkerManaged`: Manages Temporal worker lifecycle
-- `*NodeActivityImpl`: Activity implementations for each node type
-
----
-
-### 3. Commons Module (`commons`)
-
-**Purpose**: Shared data models, enums, and utilities
-
-**Responsibilities**:
-- Define common data structures (DTOs, domain models)
-- Provide shared enums and constants
-- Define node type hierarchy and interfaces
-- Workflow and node definition models
-- Request/response contracts
-
-**Key Components**:
-- **Model Layer**:
-  - `Workflow`: Workflow definition with states and transitions
-  - `NodeDefinition`: Abstract base class for all node types
-  - `WorkflowStartRequest`: Workflow initiation request
-  - `WorkflowState`: Runtime workflow state
-- **Node Types**:
-  - `HttpNode`: HTTP API call node
-  - `GroovyNode`: Script evaluation node
-  - `BranchNode`: Conditional branching node
-  - `InstructionNode`: UI instruction/form node
-  - `ProcessorNode`: Data processing node
-  - `SuccessNode`: Workflow success termination
-  - `FailureNode`: Workflow failure termination
-
----
-
-### 4. HBase Entities Module (`hbase-entities`)
-
-**Purpose**: HBase persistence layer with ORM mapping
-
-**Responsibilities**:
-- Define HBase table schemas
-- Map Java objects to HBase rows
-- Provide DAO (Data Access Object) layer
-- Handle serialization/deserialization
-
-**Key Classes**:
-- `WorkflowHB`: HBase entity for workflow definitions
-- `NodeHB`: HBase entity for node definitions
-- `WorkflowContextHB`: HBase entity for workflow runtime context
-- `AbstractEntityDao`: Generic DAO implementation
-
-**HBase Tables**:
-1. **WorkflowHB**: Stores workflow definitions
-  - Row Key: `{workflowId}_{version}`
-  - Column: `workflowData` (JSON serialized workflow)
-
-2. **NodeHB**: Stores node definitions
-  - Row Key: `{nodeId}_{version}`
-  - Column: `nodeData` (JSON serialized node)
-
-3. **WorkflowContextHB**: Stores workflow execution context
-  - Row Key: `{workflowExecutionId}`
-  - Column: `context` (JSON serialized context)
+**Key Responsibilities**:
+- **Task Execution**: Polls Temporal task queues and executes assigned workflow tasks.
+- **Node Processing**: Interprets different node types (HTTP, Groovy, Branch, etc.) and executes their specific logic.
+- **State Persistence**: Manages the workflow context (`_global` state) and persists it to the database.
+- **External Integrations**: Makes calls to external services (HTTP nodes) and evaluates dynamic scripts (Groovy nodes).
+- **Extensibility**: Loads custom SPI implementations (e.g., custom A/B testing or Token Providers) at runtime.
 
 ---
 
@@ -129,7 +55,7 @@ sidebar:
 | Category | Description |
 |----------|-------------|
 | **Responsibilities** | - REST API exposure and client request filtering.<br> - Request validation.<br> - Workflow orchestration commands (start, signal, terminate).<br> - Definition management (Workflows & Nodes CRUD). |
-| **Does NOT** | - Execute workflow logic.<br> - Run activities. |
+| **Does NOT** | - Execute workflow logic.<br> - Run activities.<br> - Evaluate scripts. |
 
 #### 2. Worker Service
 
@@ -137,6 +63,7 @@ sidebar:
 |----------|-------------|
 | **Responsibilities** | - Poll Temporal task queues for work.<br> - Execute workflow implementations (the core business logic).<br> - Run node activities (HTTP, Groovy, etc.).<br> - Manage workflow state.<br> - Persist context to HBase.<br> - Dynamic script evaluation.<br> - External API interactions. |
 | **Does NOT** | - Expose REST APIs to clients.<br> - Handle client authentication. |
+
 ---
 ## Deployment View
 
@@ -173,8 +100,8 @@ sidebar:
 │  │  │  • Temporal connection                   │  │  │
 │  │  │  • HBase config                          │  │  │
 │  │  └──────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────┘
+│  │  └────────────────────────────────────────────────┘  │
+│  └──────────────────────────────────────────────────────┘
 ```
 
 ### External Dependencies
@@ -198,4 +125,3 @@ sidebar:
 > **Note**: Drift uses Temporal's pluggable architecture for persistence and visibility. Users can choose their preferred backing stores (e.g., PostgreSQL, Cassandra, MySQL for persistence; ElasticSearch, standard SQL for visibility) based on their infrastructure and scaling needs. The diagram above represents a reference implementation.
 
 **Next**: [Low-Level Design (LLD)](/05-LOW-LEVEL-DESIGN/)
-
