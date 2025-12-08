@@ -24,6 +24,7 @@ import java.util.UUID;
 @Provider
 @Slf4j
 public class RequestFilter implements ContainerRequestFilter {
+
     public static final String TENANT_HEADER = "X_TENANT_ID";
     public static final String CLIENT_HEADER = "X_CLIENT_ID";
     public static final String X_PERF_HEADER = "X-PERF-TEST";
