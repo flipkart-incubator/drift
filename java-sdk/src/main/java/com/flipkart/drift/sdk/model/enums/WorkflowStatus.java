@@ -7,5 +7,7 @@ public enum WorkflowStatus {
     COMPLETED,
     FAILED,
     TERMINATED,
-    DELEGATED
+    DELEGATED,
+    SCHEDULER_WAITING,
+    ASYNC_COMPLETE
 }

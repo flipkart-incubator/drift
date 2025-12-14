@@ -7,6 +7,7 @@ import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
@@ -28,7 +29,7 @@ public class NodeDefinitionResource {
     @POST
     @Path("/")
     @Timed
-    public Response addNode(@NotNull NodeDefinition wfNodeData) {
+    public Response addNode(@Valid @NotNull NodeDefinition wfNodeData) {
         try {
             NodeDefinition wfNodeResponse = nodeDefinitionService.addNode(wfNodeData);
             return Response.ok(wfNodeResponse).build();
@@ -41,7 +42,7 @@ public class NodeDefinitionResource {
     @PUT
     @Path("/")
     @Timed
-    public Response updateNode(@NotNull NodeDefinition wfNodeData) {
+    public Response updateNode(@Valid @NotNull NodeDefinition wfNodeData) {
         try {
             NodeDefinition wfNodeResponse = nodeDefinitionService.updateNode(wfNodeData);
             return Response.ok(wfNodeResponse).build();

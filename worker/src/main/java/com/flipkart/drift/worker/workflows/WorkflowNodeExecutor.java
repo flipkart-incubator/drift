@@ -1,5 +1,8 @@
 package com.flipkart.drift.worker.workflows;
 
+import com.flipkart.drift.commons.model.enums.ExecutionMode;
+import com.flipkart.drift.commons.model.node.ChildInvokeNode;
+import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.worker.activities.ReturnControlActivity;
 import com.flipkart.drift.worker.activities.WorkflowContextManagerActivity;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;
@@ -15,13 +18,23 @@ import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.worker.temporal.OptionsStore;
+import com.flipkart.drift.workflows.GenericWorkflow;
 import com.google.common.collect.Sets;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ActivityStub;
+import io.temporal.workflow.Async;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.Promise;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
 import java.util.*;
+
+import static com.flipkart.drift.worker.Utility.WorkerUtility.generateChildWfId;
+import static com.flipkart.drift.worker.util.Constants.VERSION;
+import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
 
 @Slf4j
 public class WorkflowNodeExecutor {
@@ -34,7 +47,17 @@ public class WorkflowNodeExecutor {
         this.workflowState = workflowState;
     }
 
-    public ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext) {
+    public ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
+        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD_INVOKE) {
+            if (workflowStartRequest.getParentWorkflowId() != null) {
+                throw ApplicationFailure.newNonRetryableFailure(
+                        "Child_INVOKE Node can't be inside another child workflow " + currentNode.getInstanceName(),
+                        "INVALID_CHILD_INVOKE_NODE"
+                );
+            }
+            invokeChild(workflowStartRequest, currentNode);
+            return null;
+        }
         return executeNode(currentNode, threadContext, true);
     }
 
@@ -98,11 +121,17 @@ public class WorkflowNodeExecutor {
             case WAITING:
                 handleWaitingState(workflowId, activityThinResponse);
                 break;
+            case SCHEDULER_WAITING:
+                handleSchedulerWaitingState(workflowId, activityThinResponse);
+                break;
             case FAILED:
                 handleFailedState(workflowId, activityThinResponse);
                 break;
             case COMPLETED:
                 handleCompletedState(workflowId, activityThinResponse, workflow, threadContext);
+                break;
+            case ASYNC_COMPLETE:
+                handleAsyncCompleteState(workflowId, activityThinResponse, workflow, threadContext);
                 break;
             case DELEGATED:
                 handleDelegatedState(workflowId, activityThinResponse);
@@ -163,6 +192,24 @@ public class WorkflowNodeExecutor {
             WorkflowStatus status = this.workflowState.getStatus();
             return !(status.equals(WorkflowStatus.WAITING) || status.equals(WorkflowStatus.TERMINATED));
         });
+    }
+
+    private void handleSchedulerWaitingState(String workflowId, ActivityThinResponse activityThinResponse) {
+        this.workflowState.setView(activityThinResponse.getView());
+        io.temporal.workflow.Workflow.await(() -> !this.workflowState.getStatus().equals(WorkflowStatus.SCHEDULER_WAITING));
+    }
+
+    private void handleAsyncCompleteState(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
+        this.workflowState.setView(activityThinResponse.getView());
+        this.workflowState.setDisposition(activityThinResponse.getDisposition());
+
+        // Execute post-workflow completion nodes if they exist
+        if (workflow != null &&
+                workflow.getPostWorkflowCompletionNodes() != null &&
+                !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
+            logger.info("Executing post-workflow completion nodes for workflow: {}", workflowId);
+            executePostWorkflowCompletionNodes(workflow, threadContext);
+        }
     }
 
     private void handleFailedState(String workflowId, ActivityThinResponse activityThinResponse) {
@@ -240,4 +287,47 @@ public class WorkflowNodeExecutor {
                 .response(response.getNodeResponse())
                 .build();
     }
+
+    public void invokeChild(WorkflowStartRequest workflowStartRequest, WorkflowNode currentNode) {
+
+        ChildInvokeNode childNode = (ChildInvokeNode) currentNode.getNodeDefinition();
+        WorkflowStartRequest childStartRequest = buildChildWorkflowStartRequest(workflowStartRequest, childNode);
+        if (childNode.getModeOfSpawn() == ExecutionMode.ASYNC) {
+            invokeChildDontWaitForResults(childStartRequest);
+        }
+    }
+
+    private WorkflowStartRequest buildChildWorkflowStartRequest(WorkflowStartRequest parentStartRequest, ChildInvokeNode childNode) {
+        WorkflowStartRequest childStartRequest = new WorkflowStartRequest();
+
+        Map<String, Object> params = new HashMap<>();
+        params.put(WORKFLOW_ID, childNode.getChildWorkflowId());
+        params.put(VERSION, childNode.getChildWorkflowVersion());
+
+        childStartRequest.setWorkflowId(generateChildWfId(parentStartRequest));
+        childStartRequest.setParams(params);
+        childStartRequest.setParentWorkflowId(parentStartRequest.getWorkflowId());
+        childStartRequest.setIncidentId(parentStartRequest.getIncidentId());
+        childStartRequest.setIssueDetail(parentStartRequest.getIssueDetail());
+        childStartRequest.setCustomer(parentStartRequest.getCustomer());
+        childStartRequest.setThreadContext(parentStartRequest.getThreadContext());
+        childStartRequest.setOrderDetails(parentStartRequest.getOrderDetails());
+        return childStartRequest;
+
+    }
+
+    private void invokeChildDontWaitForResults(WorkflowStartRequest childStartRequest) {
+        ChildWorkflowOptions childWorkflowOptions =
+                ChildWorkflowOptions.newBuilder()
+                        .setWorkflowId(childStartRequest.getWorkflowId())
+                        .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+                        .build();
+
+        GenericWorkflow childWorkflow = io.temporal.workflow.Workflow.newChildWorkflowStub(GenericWorkflow.class, childWorkflowOptions);
+        Async.procedure(childWorkflow::startWorkflow, childStartRequest);
+        Promise<WorkflowExecution> childExecution = io.temporal.workflow.Workflow.getWorkflowExecution(childWorkflow);
+        childExecution.get();
+
+    }
+
 }

@@ -14,6 +14,7 @@ import java.util.Map;
 public abstract class WorkflowRequest {
     private String incidentId;
     private String workflowId;
+    private String parentWorkflowId;
     private Map<String, String> threadContext;
     private Map<String, Object> params;
 }

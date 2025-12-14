@@ -10,5 +10,7 @@ public enum NodeType {
     SUCCESS,
     FAILURE,
     UPDATE_INCIDENT,
-    DELEGATE
+    DELEGATE,
+    CHILD_INVOKE,
+    WAIT
 }

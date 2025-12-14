@@ -24,7 +24,9 @@ import java.util.Objects;
         @JsonSubTypes.Type(value = InstructionNode.class, name = "INSTRUCTION"),
         @JsonSubTypes.Type(value = ProcessorNode.class, name = "PROCESSOR"),
         @JsonSubTypes.Type(value = ContextOverrideNode.class, name = "CONTEXT_OVERRIDE"),
-        @JsonSubTypes.Type(value = DelegateNode.class, name = "DELEGATE")
+        @JsonSubTypes.Type(value = DelegateNode.class, name = "DELEGATE"),
+        @JsonSubTypes.Type(value = ChildInvokeNode.class, name = "CHILD_INVOKE"),
+        @JsonSubTypes.Type(value = WaitNode.class, name = "WAIT"),
 })
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class NodeDefinition {

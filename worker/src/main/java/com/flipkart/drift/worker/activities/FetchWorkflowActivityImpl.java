@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
+import static com.flipkart.drift.worker.util.Constants.VERSION;
+import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
+
 @Slf4j
 public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
     public static final String WORKFLOW_ID_KEY = "workflowId";
@@ -59,11 +62,15 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
 
 
     @Override
-    public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request){
+    public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request) {
         String issueId = request.getIssueDetail().getIssueId();
         String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
+        if (request.getParams() != null && request.getParams().containsKey(WORKFLOW_ID) && request.getParams().containsKey(VERSION)) {
+            Map<String, Object> params = request.getParams();
+            return fetchWorkflow(params.get(WORKFLOW_ID).toString(), params.get(VERSION).toString(), tenant);
+        }
+
         IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
-        
         if (issueWorkflowMapping == null || !issueWorkflowMapping.hasValidConfig()) {
             throw Activity.wrap(new RuntimeException(
                 "No workflow mapping found for issue id: " + issueId + 

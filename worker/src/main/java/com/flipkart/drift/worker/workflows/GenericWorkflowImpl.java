@@ -53,7 +53,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                         "START_NODE_NOT_FOUND"
                 );
             }
-            executeWorkflowNodes(workflow, currentNode, workflowStartRequest.getWorkflowId(), workflowStartRequest.getThreadContext());
+            executeWorkflowNodes(workflow, currentNode, workflowStartRequest.getWorkflowId(), workflowStartRequest.getThreadContext(), workflowStartRequest);
 
         } catch (Exception e) {
             logger.error("Error while executing workflow: {}", e.getMessage(), e);
@@ -100,17 +100,19 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
         return this.workflowState;
     }
 
-    private void executeWorkflowNodes(Workflow workflow, WorkflowNode currentNode, String workflowId, Map<String, String> threadContext) {
+    private void executeWorkflowNodes(Workflow workflow, WorkflowNode currentNode, String workflowId, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
         while (currentNode != null) {
             ActivityThinResponse activityThinResponse;
             try {
                 logger.info("WfId : {} Running node: {}", workflowId, currentNode.getInstanceName());
-                activityThinResponse = nodeExecutor.executeNode(currentNode, threadContext);
+                activityThinResponse = nodeExecutor.executeNode(currentNode, threadContext, workflowStartRequest);
             } catch (Exception e) {
                 currentNode = nodeExecutor.handleNodeExecutionError(e, workflow);
                 continue;
             }
-            nodeExecutor.handleNodeResponseStatus(workflowId, activityThinResponse, workflow, threadContext);
+            if (activityThinResponse != null) {
+                nodeExecutor.handleNodeResponseStatus(workflowId, activityThinResponse, workflow, threadContext);
+            }
             currentNode = workflow.getStates().get(currentNode.getNextNode());
         }
     }

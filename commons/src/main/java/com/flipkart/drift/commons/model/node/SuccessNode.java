@@ -1,11 +1,16 @@
 package com.flipkart.drift.commons.model.node;
 
+import com.flipkart.drift.commons.exception.ApiException;
+import com.flipkart.drift.commons.model.enums.ExecutionMode;
 import com.flipkart.drift.commons.model.enums.NodeType;
 import lombok.Data;
+
+import javax.ws.rs.core.Response;
 
 @Data
 public class SuccessNode extends NodeDefinition {
     private String comment;
+    private ExecutionMode executionFlow;
 
     @Override
     public NodeType getType() {
@@ -15,6 +20,9 @@ public class SuccessNode extends NodeDefinition {
     @Override
     public void validateWFNodeFields() {
         super.validateWFNodeFields();
+        if (executionFlow == null) {
+            throw new ApiException(Response.Status.BAD_REQUEST, "executionFlow shouldn't be null");
+        }
         //additional validation can be added here
     }
 
