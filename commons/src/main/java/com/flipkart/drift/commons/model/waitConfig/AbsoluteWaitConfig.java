@@ -18,6 +18,7 @@ public class AbsoluteWaitConfig extends WaitConfig {
     @NotNull(message = "timestamp must be provided")
     @FutureOrPresent
     @JsonFormat(shape = JsonFormat.Shape.STRING,
+            pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'",
             timezone = "UTC")
     private Date timestamp;
 

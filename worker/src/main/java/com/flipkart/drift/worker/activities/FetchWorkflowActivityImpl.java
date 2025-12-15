@@ -63,9 +63,13 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
     public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request) {
         String issueId = request.getIssueDetail().getIssueId();
         String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
-        if (request.getParams() != null && request.getParams().containsKey(WORKFLOW_ID) && request.getParams().containsKey(VERSION)) {
+        if (request.getParams() != null) {
             Map<String, Object> params = request.getParams();
-            return fetchWorkflow(params.get(WORKFLOW_ID).toString(), params.get(VERSION).toString(), tenant);
+            Object workflowId = params.get(WORKFLOW_ID);
+            Object version = params.get(VERSION);
+            if (workflowId != null && version != null) {
+                return fetchWorkflow(workflowId.toString(), version.toString(), tenant);
+            }
         }
 
         IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
