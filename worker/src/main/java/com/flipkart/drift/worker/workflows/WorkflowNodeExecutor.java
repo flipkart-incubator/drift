@@ -294,6 +294,12 @@ public class WorkflowNodeExecutor {
         WorkflowStartRequest childStartRequest = buildChildWorkflowStartRequest(workflowStartRequest, childNode);
         if (childNode.getModeOfSpawn() == ExecutionMode.ASYNC) {
             invokeChildDontWaitForResults(childStartRequest);
+        } else {
+            // TODO: Implement synchronous child workflow invocation
+            throw ApplicationFailure.newNonRetryableFailure(
+                    "SYNC mode for child workflow invocation is not yet implemented",
+                    "SYNC_MODE_NOT_IMPLEMENTED"
+            );
         }
     }
 

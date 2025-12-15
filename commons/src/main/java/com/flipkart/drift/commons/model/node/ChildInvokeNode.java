@@ -35,6 +35,12 @@ public class ChildInvokeNode extends NodeDefinition {
         if (sourceChildInvokeNode.getModeOfSpawn() != null) {
             this.setModeOfSpawn(sourceChildInvokeNode.getModeOfSpawn());
         }
+        if (sourceChildInvokeNode.getChildWorkflowId() != null) {
+            this.setChildWorkflowId(sourceChildInvokeNode.getChildWorkflowId());
+        }
+        if (sourceChildInvokeNode.getChildWorkflowVersion() != null) {
+            this.setChildWorkflowVersion(sourceChildInvokeNode.getChildWorkflowVersion());
+        }
     }
 
 }

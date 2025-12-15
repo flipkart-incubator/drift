@@ -19,8 +19,6 @@ import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
 
 @Slf4j
 public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
-    public static final String WORKFLOW_ID_KEY = "workflowId";
-    public static final String VERSION_KEY = "version";
     private final WorkflowCache workflowCache;
     private final NodeDefinitionCache nodeDefinitionCache;
     private final IssueWorkflowMappingService issueWorkflowMappingService;
@@ -86,7 +84,7 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
         if (abRequestMapping == null) {
             throw Activity.wrap(new RuntimeException("No workflow mapping found for issue id when AB is enabled: " + issueId));
         }
-        return fetchWorkflow(abRequestMapping.get(WORKFLOW_ID_KEY), abRequestMapping.get(VERSION_KEY), tenant);
+        return fetchWorkflow(abRequestMapping.get(WORKFLOW_ID), abRequestMapping.get(VERSION), tenant);
     }
 
     @Override

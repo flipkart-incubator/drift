@@ -10,6 +10,6 @@ public class OnEventExecutor implements WaitTypeExecutor {
     @Override
     public ActivityResponse executeWait(ActivityRequest<WaitNode> activityRequest) throws Exception {
         // This method is intended to handle on-event wait logic. future useCase
-        return null;
+        throw new UnsupportedOperationException("ON_EVENT wait type is not yet implemented");
     }
 }
