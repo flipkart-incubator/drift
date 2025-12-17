@@ -5,11 +5,13 @@ import com.flipkart.drift.commons.model.enums.ExecutionMode;
 import com.flipkart.drift.commons.model.enums.NodeType;
 import lombok.Data;
 
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.core.Response;
 
 @Data
 public class SuccessNode extends NodeDefinition {
     private String comment;
+    @NotNull(message = "executionMode can't be null")
     private ExecutionMode executionMode;
 
     @Override
@@ -20,9 +22,6 @@ public class SuccessNode extends NodeDefinition {
     @Override
     public void validateWFNodeFields() {
         super.validateWFNodeFields();
-        if (executionMode == null) {
-            throw new ApiException(Response.Status.BAD_REQUEST, "executionMode shouldn't be null");
-        }
         //additional validation can be added here
     }
 
