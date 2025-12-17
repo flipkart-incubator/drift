@@ -16,8 +16,8 @@ import javax.validation.constraints.Positive;
 public class SchedulerWaitConfig extends WaitConfig {
     @Positive(message = "duration in second must be > 0")
     private long duration;
-    @NotNull(message = "executionFlow can't be null")
-    private ExecutionMode executionFlow;
+    @NotNull(message = "executionMode can't be null")
+    private ExecutionMode executionMode;
 
     public SchedulerWaitConfig() {
         super(WaitType.SCHEDULER_WAIT);

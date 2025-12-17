@@ -32,7 +32,7 @@ public class WaitNodeNodeActivityImpl extends BaseNodeActivityImpl<WaitNode> imp
             WaitTypeExecutor waitExecutor = waitTypeExecutorMap.get(waitType);
             return waitExecutor.executeWait(activityRequest);
         } catch (Exception e) {
-            log.error("Exception while executing Wait node", e);
+            log.error("Exception while executing wait node", e);
             throw Activity.wrap(e);
         }
     }

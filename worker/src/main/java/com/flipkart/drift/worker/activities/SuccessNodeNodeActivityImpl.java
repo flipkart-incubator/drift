@@ -21,7 +21,7 @@ public class SuccessNodeNodeActivityImpl extends BaseNodeActivityImpl<SuccessNod
     public ActivityResponse executeNode(ActivityRequest<SuccessNode> activityRequest) {
         return ActivityResponse.builder()
                 .nodeResponse(MAPPER.createObjectNode().put("comment", activityRequest.getNodeDefinition().getComment()))
-                .workflowStatus(activityRequest.getNodeDefinition().getExecutionFlow() == ExecutionMode.SYNC
+                .workflowStatus(activityRequest.getNodeDefinition().getExecutionMode() == ExecutionMode.SYNC
                         ? WorkflowStatus.COMPLETED
                         : WorkflowStatus.ASYNC_COMPLETE).build();
     }

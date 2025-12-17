@@ -1,7 +1,7 @@
 package com.flipkart.drift.worker.workflows;
 
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
-import com.flipkart.drift.commons.model.node.ChildInvokeNode;
+import com.flipkart.drift.commons.model.node.ChildNode;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.worker.activities.ReturnControlActivity;
 import com.flipkart.drift.worker.activities.WorkflowContextManagerActivity;
@@ -48,12 +48,9 @@ public class WorkflowNodeExecutor {
     }
 
     public ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
-        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD_INVOKE) {
+        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD) {
             if (workflowStartRequest.getParentWorkflowId() != null) {
-                throw ApplicationFailure.newNonRetryableFailure(
-                        "Child_INVOKE Node can't be inside another child workflow " + currentNode.getInstanceName(),
-                        "INVALID_CHILD_INVOKE_NODE"
-                );
+                throw ApplicationFailure.newNonRetryableFailure("Child node cannot be nested inside another child workflow: " + currentNode.getInstanceName(), "INVALID_CHILD_NODE");
             }
             invokeChild(workflowStartRequest, currentNode);
             return null;
@@ -204,9 +201,7 @@ public class WorkflowNodeExecutor {
         this.workflowState.setDisposition(activityThinResponse.getDisposition());
 
         // Execute post-workflow completion nodes if they exist
-        if (workflow != null &&
-                workflow.getPostWorkflowCompletionNodes() != null &&
-                !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
+        if (workflow != null && workflow.getPostWorkflowCompletionNodes() != null && !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
             logger.info("Executing post-workflow completion nodes for workflow: {}", workflowId);
             executePostWorkflowCompletionNodes(workflow, threadContext);
         }
@@ -226,13 +221,10 @@ public class WorkflowNodeExecutor {
     private void handleCompletedState(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
         this.workflowState.setView(activityThinResponse.getView());
         this.workflowState.setDisposition(activityThinResponse.getDisposition());
-        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions)
-                .exec(workflowId);
+        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
 
         // Execute post-workflow completion nodes if they exist
-        if (workflow != null &&
-            workflow.getPostWorkflowCompletionNodes() != null &&
-            !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
+        if (workflow != null && workflow.getPostWorkflowCompletionNodes() != null && !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
             logger.info("Executing post-workflow completion nodes for workflow: {}", workflowId);
             executePostWorkflowCompletionNodes(workflow, threadContext);
         }
@@ -290,20 +282,17 @@ public class WorkflowNodeExecutor {
 
     public void invokeChild(WorkflowStartRequest workflowStartRequest, WorkflowNode currentNode) {
 
-        ChildInvokeNode childNode = (ChildInvokeNode) currentNode.getNodeDefinition();
+        ChildNode childNode = (ChildNode) currentNode.getNodeDefinition();
         WorkflowStartRequest childStartRequest = buildChildWorkflowStartRequest(workflowStartRequest, childNode);
-        if (childNode.getModeOfSpawn() == ExecutionMode.ASYNC) {
+        if (childNode.getExecutionMode() == ExecutionMode.ASYNC) {
             invokeChildDontWaitForResults(childStartRequest);
         } else {
             // TODO: Implement synchronous child workflow invocation
-            throw ApplicationFailure.newNonRetryableFailure(
-                    "SYNC mode for child workflow invocation is not yet implemented",
-                    "SYNC_MODE_NOT_IMPLEMENTED"
-            );
+            throw ApplicationFailure.newNonRetryableFailure("Sync mode for child workflow invocation is not yet implemented", "SYNC_MODE_NOT_IMPLEMENTED");
         }
     }
 
-    private WorkflowStartRequest buildChildWorkflowStartRequest(WorkflowStartRequest parentStartRequest, ChildInvokeNode childNode) {
+    private WorkflowStartRequest buildChildWorkflowStartRequest(WorkflowStartRequest parentStartRequest, ChildNode childNode) {
         WorkflowStartRequest childStartRequest = new WorkflowStartRequest();
 
         Map<String, Object> params = new HashMap<>();
@@ -323,11 +312,7 @@ public class WorkflowNodeExecutor {
     }
 
     private void invokeChildDontWaitForResults(WorkflowStartRequest childStartRequest) {
-        ChildWorkflowOptions childWorkflowOptions =
-                ChildWorkflowOptions.newBuilder()
-                        .setWorkflowId(childStartRequest.getWorkflowId())
-                        .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-                        .build();
+        ChildWorkflowOptions childWorkflowOptions = ChildWorkflowOptions.newBuilder().setWorkflowId(childStartRequest.getWorkflowId()).setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON).build();
 
         GenericWorkflow childWorkflow = io.temporal.workflow.Workflow.newChildWorkflowStub(GenericWorkflow.class, childWorkflowOptions);
         Async.procedure(childWorkflow::startWorkflow, childStartRequest);

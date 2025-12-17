@@ -8,10 +8,10 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 @Data
-public class ChildInvokeNode extends NodeDefinition {
+public class ChildNode extends NodeDefinition {
 
-    @NotNull(message = "modeOfSpawn can't be null")
-    private ExecutionMode modeOfSpawn;
+    @NotNull(message = "executionMode can't be null")
+    private ExecutionMode executionMode;
     @NotBlank(message = "childWorkflowId can't be blank")
     private String childWorkflowId;
     @NotBlank(message = "childWorkflowVersion can't be empty")
@@ -19,7 +19,7 @@ public class ChildInvokeNode extends NodeDefinition {
 
     @Override
     public NodeType getType() {
-        return NodeType.CHILD_INVOKE;
+        return NodeType.CHILD;
     }
 
 
@@ -31,15 +31,15 @@ public class ChildInvokeNode extends NodeDefinition {
 
     @Override
     public void mergeRequestToEntity(NodeDefinition sourceNode) {
-        ChildInvokeNode sourceChildInvokeNode = (ChildInvokeNode) sourceNode;
-        if (sourceChildInvokeNode.getModeOfSpawn() != null) {
-            this.setModeOfSpawn(sourceChildInvokeNode.getModeOfSpawn());
+        ChildNode sourceChildNode = (ChildNode) sourceNode;
+        if (sourceChildNode.getExecutionMode() != null) {
+            this.setExecutionMode(sourceChildNode.getExecutionMode());
         }
-        if (sourceChildInvokeNode.getChildWorkflowId() != null) {
-            this.setChildWorkflowId(sourceChildInvokeNode.getChildWorkflowId());
+        if (sourceChildNode.getChildWorkflowId() != null) {
+            this.setChildWorkflowId(sourceChildNode.getChildWorkflowId());
         }
-        if (sourceChildInvokeNode.getChildWorkflowVersion() != null) {
-            this.setChildWorkflowVersion(sourceChildInvokeNode.getChildWorkflowVersion());
+        if (sourceChildNode.getChildWorkflowVersion() != null) {
+            this.setChildWorkflowVersion(sourceChildNode.getChildWorkflowVersion());
         }
     }
 

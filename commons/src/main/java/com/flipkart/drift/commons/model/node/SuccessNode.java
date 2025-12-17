@@ -10,7 +10,7 @@ import javax.ws.rs.core.Response;
 @Data
 public class SuccessNode extends NodeDefinition {
     private String comment;
-    private ExecutionMode executionFlow;
+    private ExecutionMode executionMode;
 
     @Override
     public NodeType getType() {
@@ -20,8 +20,8 @@ public class SuccessNode extends NodeDefinition {
     @Override
     public void validateWFNodeFields() {
         super.validateWFNodeFields();
-        if (executionFlow == null) {
-            throw new ApiException(Response.Status.BAD_REQUEST, "executionFlow shouldn't be null");
+        if (executionMode == null) {
+            throw new ApiException(Response.Status.BAD_REQUEST, "executionMode shouldn't be null");
         }
         //additional validation can be added here
     }

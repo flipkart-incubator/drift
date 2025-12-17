@@ -51,7 +51,7 @@ public class SchedulerWaitExecutor implements WaitTypeExecutor {
             }
 
             return ActivityResponse.builder()
-                    .workflowStatus(config.getExecutionFlow() == ExecutionMode.SYNC
+                    .workflowStatus(config.getExecutionMode() == ExecutionMode.SYNC
                             ? WorkflowStatus.WAITING
                             : WorkflowStatus.SCHEDULER_WAITING).build();
         } catch (Exception e) {
