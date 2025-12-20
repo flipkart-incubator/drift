@@ -26,7 +26,11 @@ The project is organized as a multi-module Maven project, designed to separate p
 *   **SPIs**: Interfaces for extending platform capabilities.
     *   `TokenProvider`: Interface for injecting authentication tokens into HTTP nodes.
     *   `ABTestingProvider`: Interface for resolving A/B testing experiments.
+    *   `SchedulerProvider`: Interface to plug external schedulers used by WAIT nodes.
 *   **Factories**: Thread-safe factories (`TokenProviderFactory`, `ABTestingProviderFactory`) that use `ServiceLoader` to discover implementations at runtime.
+    *   `SchedulerProviderFactory`: Discovers `SchedulerProvider` via `ServiceLoader`, defaults to `NoOpSchedulerProvider`.
+*   **Client Models**:
+    *   `ScheduleRequest`: `{ scheduleTimeInMillis, workflowId }` payload passed to `SchedulerProvider.addSchedule`.
 
 ### 2. Commons (`commons`)
 **Purpose**: The shared internal core containing domain models, business logic for node types, and the persistence layer.

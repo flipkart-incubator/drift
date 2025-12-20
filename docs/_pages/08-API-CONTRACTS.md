@@ -74,16 +74,18 @@ Initiates a new workflow execution.
 
 ```java
 public class WorkflowStartRequest extends WorkflowRequest {
-    @NotNull private IssueDetail issueDetail; // Identification of the issue/intent
-    private QueueDetail queueDetail;          // Optional queue routing info
-    @NotNull private Customer customer;       // Customer context
+    @NotNull private IssueDetail issueDetail;     // Identification of the issue/intent
+    private QueueDetail queueDetail;              // Optional queue routing info
+    @NotNull private Customer customer;           // Customer context
     @NotNull private Set<OrderDetail> orderDetails; // Domain-specific context (e.g., Orders)
+    private Map<String, Object> config;           // Optional config for worker/platform
 }
 
 // Base class
 public abstract class WorkflowRequest {
-    private String incidentId;      // Populated by Drift
-    private String workflowId;      // Populated by Drift
+    private String incidentId;          // Populated by Drift
+    private String workflowId;          // Populated by Drift
+    private String parentWorkflowId;    // Populated when invoked via CHILD node
     private Map<String, String> threadContext;
     private Map<String, Object> params;
 }
@@ -125,7 +127,15 @@ public class WorkflowResponse implements Serializable {
 }
 
 public enum WorkflowStatus {
-    CREATED, RUNNING, WAITING, COMPLETED, FAILED, TERMINATED
+    CREATED,
+    RUNNING,
+    WAITING,
+    COMPLETED,
+    FAILED,
+    TERMINATED,
+    DELEGATED,
+    SCHEDULER_WAITING,
+    ASYNC_COMPLETE
 }
 ```
 
