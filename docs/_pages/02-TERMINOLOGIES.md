@@ -25,7 +25,7 @@ A single node instance (or sub-workflow composed of nodes) can be integrated acr
 | **GROOVY**            | Executes custom transformation and business logic using Groovy scripts.                  |
 | **INSTRUCTION**       | Handles UI interactions and necessary I/O (human-in-the-loop).                     |
 | **SUCCESS / FAILURE** | Terminal nodes that explicitly mark the conclusion or failure state of the workflow. |
-| **CHILD**             | Executes specified nodes or sub-workflows concurrently.                                |
+| **CHILD**             | Invokes a single sub-workflow (currently async; parent continues).                    |
 
 ---
 
