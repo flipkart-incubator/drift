@@ -17,15 +17,15 @@ A single node instance (or sub-workflow composed of nodes) can be integrated acr
 
 #### **Node Types**
 
-| Node Type   | Purpose                                                                                  |
-|-------------|------------------------------------------------------------------------------------------|
-| **HTTP**    | Executes external API calls (e.g., fetching data, triggering services).                  |
-| **WAIT**    | Pauses workflow execution for a specified duration or until a scheduled time.            |
-| **BRANCH**  | Implements conditional logic to direct the workflow to different paths.                  |
-| **GROOVY**  | Executes custom transformation and business logic using Groovy scripts.                  |
-| **INSTRUCTION** | Handles UI interactions and necessary I/O (human-in-the-loop).                     |
+| Node Type             | Purpose                                                                                  |
+|-----------------------|------------------------------------------------------------------------------------------|
+| **HTTP**              | Executes external API calls (e.g., fetching data, triggering services).                  |
+| **WAIT**              | Pauses workflow execution for a specified duration or until a scheduled time.            |
+| **BRANCH**            | Implements conditional logic to direct the workflow to different paths.                  |
+| **GROOVY**            | Executes custom transformation and business logic using Groovy scripts.                  |
+| **INSTRUCTION**       | Handles UI interactions and necessary I/O (human-in-the-loop).                     |
 | **SUCCESS / FAILURE** | Terminal nodes that explicitly mark the conclusion or failure state of the workflow. |
-| **PARALLEL** | Executes specified nodes or sub-workflows concurrently.                                |
+| **CHILD**             | Invokes a single sub-workflow (currently async; parent continues).                    |
 
 ---
 

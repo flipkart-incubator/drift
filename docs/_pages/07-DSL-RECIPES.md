@@ -112,6 +112,49 @@ Used for conditional routing.
 }
 ```
 
+### WAIT Node
+Used to pause workflow execution based on a wait configuration.
+
+#### Scheduler Wait (duration-based)
+
+```json
+{
+  "id": "hold_for_15s",
+  "name": "Wait for 15 seconds",
+  "type": "WAIT",
+  "version": "1",
+  "config": {
+    "waitType": "SCHEDULER_WAIT",
+    "duration": 15,
+    "executionMode": "ASYNC"
+  }
+}
+```
+
+
+
+
+### CHILD Node
+Used to invoke another workflow (sub-workflow).
+
+```json
+{
+  "id": "launch_child_wf",
+  "name": "Launch child workflow",
+  "type": "CHILD",
+  "version": "1",
+  "executionMode": "ASYNC",
+  "childWorkflowId": "refund_child_workflow",
+  "childWorkflowVersion": "LATEST"
+}
+```
+
+
+
+Notes:
+- Nesting Child inside another child workflow is not supported.
+- In ASYNC mode, parent proceeds without waiting for child completion.
+
 ### Referencing Groovy Scripts
 Instead of embedding scripts directly in the JSON, you can reference external script files. This promotes better version control, code reviews, and auditability.
 

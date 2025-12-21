@@ -1,17 +1,24 @@
 package com.flipkart.drift.worker.bootstrap;
 
 import com.codahale.metrics.InstrumentedExecutorService;
+import com.flipkart.drift.commons.model.enums.WaitType;
 import com.flipkart.drift.persistence.bootstrap.CacheMaxEntriesConfig;
 import com.flipkart.drift.persistence.bootstrap.StaticCacheRefreshConfig;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.IConnectionProvider;
 import com.flipkart.drift.worker.Utility.ABServiceInitializer;
+import com.flipkart.drift.worker.Utility.SchedulerInitializer;
 import com.flipkart.drift.worker.config.*;
 import com.flipkart.drift.commons.exception.RedisStoreException;
+import com.flipkart.drift.worker.executor.WaitTypeExecutor.AbsoluteWaitExecutor;
+import com.flipkart.drift.worker.executor.WaitTypeExecutor.OnEventExecutor;
+import com.flipkart.drift.worker.executor.WaitTypeExecutor.SchedulerWaitExecutor;
+import com.flipkart.drift.worker.executor.WaitTypeExecutor.WaitTypeExecutor;
 import com.flipkart.drift.worker.stringResolver.MustacheStringResolver;
 import com.flipkart.drift.worker.stringResolver.StringResolver;
 import com.flipkart.drift.commons.utils.MetricsRegistry;
 import com.google.inject.*;
+import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Names;
 import com.netflix.config.DynamicProperty;
 import lombok.extern.slf4j.Slf4j;
@@ -163,6 +170,13 @@ public class WorkerModule extends AbstractModule {
         bind(StringResolver.class).to(MustacheStringResolver.class);
         bind(Connection.class).annotatedWith(Names.named(ConnectionType.HOT.name())).toProvider(ConnectionProviderWorker.class).asEagerSingleton();
         bind(IConnectionProvider.class).to(ConnectionProvider.class).asEagerSingleton();
+
+        MapBinder<WaitType, WaitTypeExecutor> waitTypeExecutorMapBinder = MapBinder.newMapBinder(binder(),
+                WaitType.class,
+                WaitTypeExecutor.class);
+        waitTypeExecutorMapBinder.addBinding(WaitType.SCHEDULER_WAIT).to(SchedulerWaitExecutor.class);
+        waitTypeExecutorMapBinder.addBinding(WaitType.ABSOLUTE_WAIT).to(AbsoluteWaitExecutor.class);
+        waitTypeExecutorMapBinder.addBinding(WaitType.ON_EVENT).to(OnEventExecutor.class);
     }
 
     @Provides
@@ -204,6 +218,12 @@ public class WorkerModule extends AbstractModule {
     @Singleton
     public ABServiceInitializer provideABServiceInitializer() {
         return new ABServiceInitializer();
+    }
+
+    @Provides
+    @Singleton
+    public SchedulerInitializer provideSchedulerInitializer() {
+        return new SchedulerInitializer();
     }
 
 }

@@ -7,6 +7,7 @@ import com.google.inject.Inject;
 import com.wordnik.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
@@ -29,7 +30,7 @@ public class WorkflowDefinitionResource {
     @POST
     @Path("/")
     @Timed
-    public Response addWorkflow(@NotNull Workflow workflowData) {
+    public Response addWorkflow(@Valid @NotNull Workflow workflowData) {
         try {
             Workflow workflowResponse = workflowDefinitionService.addWorkflow(workflowData);
             return Response.ok(workflowResponse).build();
@@ -41,7 +42,7 @@ public class WorkflowDefinitionResource {
     @PUT
     @Path("/")
     @Timed
-    public Response updateWorkflow(@NotNull Workflow workflowData) {
+    public Response updateWorkflow(@Valid @NotNull Workflow workflowData) {
         try {
             Workflow workflowResponse = workflowDefinitionService.updateWorkflow(workflowData);
             return Response.ok(workflowResponse).build();

@@ -14,10 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
+import static com.flipkart.drift.worker.util.Constants.VERSION;
+import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
+
 @Slf4j
 public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
-    public static final String WORKFLOW_ID_KEY = "workflowId";
-    public static final String VERSION_KEY = "version";
     private final WorkflowCache workflowCache;
     private final NodeDefinitionCache nodeDefinitionCache;
     private final IssueWorkflowMappingService issueWorkflowMappingService;
@@ -59,11 +60,19 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
 
 
     @Override
-    public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request){
+    public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request) {
         String issueId = request.getIssueDetail().getIssueId();
         String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
+        if (request.getParams() != null) {
+            Map<String, Object> params = request.getParams();
+            Object workflowId = params.get(WORKFLOW_ID);
+            Object version = params.get(VERSION);
+            if (workflowId != null && version != null) {
+                return fetchWorkflow(workflowId.toString(), version.toString(), tenant);
+            }
+        }
+
         IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
-        
         if (issueWorkflowMapping == null || !issueWorkflowMapping.hasValidConfig()) {
             throw Activity.wrap(new RuntimeException(
                 "No workflow mapping found for issue id: " + issueId + 
@@ -79,7 +88,7 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
         if (abRequestMapping == null) {
             throw Activity.wrap(new RuntimeException("No workflow mapping found for issue id when AB is enabled: " + issueId));
         }
-        return fetchWorkflow(abRequestMapping.get(WORKFLOW_ID_KEY), abRequestMapping.get(VERSION_KEY), tenant);
+        return fetchWorkflow(abRequestMapping.get(WORKFLOW_ID), abRequestMapping.get(VERSION), tenant);
     }
 
     @Override

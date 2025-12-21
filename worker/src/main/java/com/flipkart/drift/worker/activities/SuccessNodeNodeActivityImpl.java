@@ -1,5 +1,6 @@
 package com.flipkart.drift.worker.activities;
 
+import com.flipkart.drift.commons.model.enums.ExecutionMode;
 import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.SuccessNode;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;
@@ -20,6 +21,8 @@ public class SuccessNodeNodeActivityImpl extends BaseNodeActivityImpl<SuccessNod
     public ActivityResponse executeNode(ActivityRequest<SuccessNode> activityRequest) {
         return ActivityResponse.builder()
                 .nodeResponse(MAPPER.createObjectNode().put("comment", activityRequest.getNodeDefinition().getComment()))
-                .workflowStatus(WorkflowStatus.COMPLETED).build();
+                .workflowStatus(activityRequest.getNodeDefinition().getExecutionMode() == ExecutionMode.SYNC
+                        ? WorkflowStatus.COMPLETED
+                        : WorkflowStatus.ASYNC_COMPLETE).build();
     }
 }

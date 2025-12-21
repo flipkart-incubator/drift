@@ -73,6 +73,8 @@ Manages reusable node definitions. Each node encapsulates one atomic step.
 | **BRANCH** | Conditional routing logic. |
 | **SUCCESS/FAILURE** | Terminal states. |
 | **PROCESSOR** | *Deprecated* (Use Groovy). |
+| **WAIT** | Pauses workflow based on a wait configuration. |
+| **CHILD** | Triggers another workflow (sub-workflow) from within a workflow. |
 
 ### 2.2 Definition Model
 
