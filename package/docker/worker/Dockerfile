@@ -13,7 +13,7 @@ RUN mkdir -p /usr/share/drift-worker/service && \
     echo Asia/Calcutta > /etc/timezones
 
 COPY worker/target/worker-*.jar /usr/share/drift-worker/service/worker.jar
-COPY Docker/worker/entrypoint.sh /entrypoint.sh
+COPY package/docker/worker/entrypoint.sh /entrypoint.sh
 
 # Default values for JVM settings
 ENV JVM_XMS="8g"
