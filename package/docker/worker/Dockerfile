@@ -1,5 +1,5 @@
 #BASE IMAGE
-FROM eclipse-temurin:17-jdk-slim-bullseye
+FROM jfrog.fkinternal.com/fk-base-images/openjdk/jdk:17.0.2-debian11.3-slim-20220527
 
 RUN mkdir -p /usr/share/drift-worker/service && \
     mkdir -p /var/log/drift-worker && \
