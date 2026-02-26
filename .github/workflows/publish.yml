@@ -65,4 +65,5 @@ jobs:
         run: mvn -B deploy -s $GITHUB_WORKSPACE/settings.xml
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }} # Setting both as of now.
 
