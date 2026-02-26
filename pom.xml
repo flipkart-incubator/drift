@@ -52,6 +52,7 @@
         <maven.source.plugin.version>3.3.0</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.6.2</maven.javadoc.plugin.version>
         <maven.gpg.plugin.version>3.2.1</maven.gpg.plugin.version>
+        <lombok.maven.plugin.version>1.18.20.0</lombok.maven.plugin.version>
         <attach.sources.skip>false</attach.sources.skip>
         <attach.javadoc.skip>false</attach.javadoc.skip>
     </properties>
@@ -128,6 +129,46 @@
             <modules>
                 <module>worker</module>
             </modules>
+        </profile>
+        <!-- Delombok + Javadoc sourcepath: only for modules with src/main/java (skip parent) -->
+        <profile>
+            <id>delombok-for-javadoc</id>
+            <activation>
+                <file>
+                    <exists>src/main/java</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok-maven-plugin</artifactId>
+                        <version>${lombok.maven.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>delombok</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>delombok</goal>
+                                </goals>
+                                <configuration>
+                                    <sourceDirectory>src/main/java</sourceDirectory>
+                                    <outputDirectory>${project.build.directory}/generated-sources/delombok</outputDirectory>
+                                    <addOutputDirectory>false</addOutputDirectory>
+                                    <encoding>${project.build.sourceEncoding}</encoding>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 
@@ -482,14 +523,6 @@
                     <doclint>none</doclint>
                     <source>17</source>
                     <skip>${attach.javadoc.skip}</skip>
-                    <!-- Lombok is provided-scope; add to classpath so Javadoc can resolve annotations -->
-                    <additionalDependencies>
-                        <additionalDependency>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </additionalDependency>
-                    </additionalDependencies>
                 </configuration>
                 <executions>
                     <execution>
