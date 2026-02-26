@@ -71,7 +71,7 @@
 
     <scm>
         <connection>scm:git:git://github.com/flipkart-incubator/drift.git</connection>
-        <developerConnection>scm:git:ssh://github.com:flipkart-incubator/drift.git</developerConnection>
+        <developerConnection>scm:git:ssh://git@github.com/flipkart-incubator/drift.git</developerConnection>
         <url>https://github.com/flipkart-incubator/drift</url>
         <tag>HEAD</tag>
     </scm>
