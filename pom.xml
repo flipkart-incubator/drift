@@ -482,6 +482,14 @@
                     <doclint>none</doclint>
                     <source>17</source>
                     <skip>${attach.javadoc.skip}</skip>
+                    <!-- Lombok is provided-scope; add to classpath so Javadoc can resolve annotations -->
+                    <additionalDependencies>
+                        <additionalDependency>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </additionalDependency>
+                    </additionalDependencies>
                 </configuration>
                 <executions>
                     <execution>
