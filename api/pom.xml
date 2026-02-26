@@ -59,6 +59,8 @@
     <modelVersion>4.0.0</modelVersion>
     <version>${revision}</version>
     <artifactId>api</artifactId>
+    <name>Drift API</name>
+    <description>Drift API application and bootstrap for running workflow APIs.</description>
     <dependencies>
         <dependency>
             <groupId>com.google.inject</groupId>

@@ -12,6 +12,8 @@
 
     <artifactId>worker</artifactId>
     <version>${revision}</version>
+    <name>Drift Worker</name>
+    <description>Drift Worker runtime for executing workflow tasks.</description>
 
     <distributionManagement>
         <repository>
