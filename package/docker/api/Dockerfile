@@ -1,5 +1,4 @@
 #BASE IMAGE
-FROM eclipse-temurin:17-jdk-slim-bullseye
 ARG BASE_IMAGE=eclipse-temurin:17-jdk-slim-bullseye
 FROM ${BASE_IMAGE}
 
