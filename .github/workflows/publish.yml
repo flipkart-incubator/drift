@@ -14,8 +14,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-      CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
       GPG_PASSPHRASE: ${{ secrets.FOSS_GPG_PASSPHRASE }}
 
     steps:
