@@ -3,6 +3,7 @@ package com.flipkart.drift.worker.activities;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.flipkart.drift.worker.Utility.WorkerUtility;
+import com.flipkart.drift.worker.exception.HttpRetryableException;
 import com.flipkart.drift.worker.executor.HttpExecutor;
 import com.flipkart.drift.commons.model.clientComponent.HttpComponents;
 import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
@@ -16,6 +17,7 @@ import com.flipkart.drift.worker.service.WorkflowContextHBService;
 import com.flipkart.drift.worker.translator.ClientResolvedDetailBuilder;
 import com.google.inject.Inject;
 import io.temporal.activity.Activity;
+import io.temporal.failure.ApplicationFailure;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -58,6 +60,16 @@ public class HttpNodeNodeActivityImpl extends BaseNodeActivityImpl<HttpNode> imp
             return ActivityResponse.builder()
                     .workflowStatus(WorkflowStatus.RUNNING)
                     .nodeResponse(transformerDetails.getTransformedResponse()).build();
+        } catch (HttpRetryableException e) {
+            // 5xx / 408 / 429 — signal Temporal to retry this activity
+            log.error("Retryable HTTP error in node {}: {}", activityRequest.getNodeDefinition().getId(), e.getMessage());
+            throw ApplicationFailure.newFailure(e.getMessage(), "HTTP_RETRYABLE", e);
+        } catch (IOException e) {
+            // Non-retryable 4xx — route workflow to failure node via FAILED status
+            log.error("Non-retryable HTTP error in node {}: {}", activityRequest.getNodeDefinition().getId(), e.getMessage());
+            return ActivityResponse.builder()
+                    .workflowStatus(WorkflowStatus.FAILED)
+                    .build();
         } catch (Exception e) {
             log.error("Exception while executing http node {}", e.getMessage());
             throw Activity.wrap(e);

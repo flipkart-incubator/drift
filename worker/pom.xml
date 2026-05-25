@@ -151,8 +151,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.tngtech.archunit</groupId>
-            <artifactId>archunit-junit5</artifactId>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -260,13 +260,6 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>17</release>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

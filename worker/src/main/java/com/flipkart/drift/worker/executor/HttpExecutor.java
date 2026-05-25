@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.flipkart.drift.commons.model.resolvedDetails.HttpDetails;
+import com.flipkart.drift.worker.exception.HttpRetryableException;
 import com.flipkart.drift.worker.util.AuthNTokenGenerator;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -123,10 +124,15 @@ public class HttpExecutor {
                     return objectMapper.readTree(bodyString);
                 }
             } else {
-                log.error("HTTP error code: " + response.code() + ", headers: " + response.headers().toString());
+                int code = response.code();
+                log.error("HTTP error code: {}, headers: {}", code, response.headers());
                 // Record failure metric
                 requestScope.counter("http_requests_failure").inc(1);
-                throw new IOException("HTTP error code: " + response.code());
+                if (isRetryableStatusCode(code)) {
+                    throw new HttpRetryableException("HTTP retryable error: " + code);
+                } else {
+                    throw new IOException("HTTP non-retryable error: " + code);
+                }
             }
         } catch (IOException e) {
             // Record failure metric for IO exceptions
@@ -136,6 +142,20 @@ public class HttpExecutor {
             // Stop the timer
             stopwatch.stop();
         }
+    }
+
+    /**
+     * Returns {@code true} for HTTP status codes that represent transient failures
+     * and should be retried by Temporal:
+     * <ul>
+     *   <li>408 — Request Timeout</li>
+     *   <li>429 — Too Many Requests</li>
+     *   <li>500–599 — server-side errors</li>
+     * </ul>
+     * Package-private for unit testing.
+     */
+    static boolean isRetryableStatusCode(int code) {
+        return code == 408 || code == 429 || (code >= 500 && code < 600);
     }
 
     private static void addAuthToken(HttpDetails httpDetails) {

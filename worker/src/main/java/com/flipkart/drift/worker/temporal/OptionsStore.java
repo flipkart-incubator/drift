@@ -25,7 +25,10 @@ public class OptionsStore {
             .build();
 
     public static final RetryOptions activityRetryOptionsV1 = RetryOptions.newBuilder()
-            .setMaximumAttempts(1)
+            .setInitialInterval(Duration.ofSeconds(1))
+            .setMaximumInterval(Duration.ofSeconds(10))
+            .setBackoffCoefficient(2.0)
+            .setMaximumAttempts(3)
             .build();
     public static final ActivityOptions activityOptionsV1 = ActivityOptions.newBuilder()
             .setStartToCloseTimeout(Duration.ofSeconds(10))
