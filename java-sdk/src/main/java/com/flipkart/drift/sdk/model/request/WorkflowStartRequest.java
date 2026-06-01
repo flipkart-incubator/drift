@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.sdk.model.client.Customer;
 import com.flipkart.drift.sdk.model.client.IssueDetail;
 import com.flipkart.drift.sdk.model.client.OrderDetail;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,4 +29,10 @@ public class WorkflowStartRequest extends WorkflowRequest {
     @Deprecated
     private Set<OrderDetail> orderDetails;
     private Map<String, Object> config;
+    /**
+     * Controls whether the API call blocks waiting for a terminal state (SYNC) or returns immediately (ASYNC).
+     * Defaults to SYNC for backward compatibility.
+     * SYNC requires Redis to be enabled; use ASYNC in Redis-free environments.
+     */
+    private WorkflowExecutionMode workflowExecutionMode = WorkflowExecutionMode.SYNC;
 }

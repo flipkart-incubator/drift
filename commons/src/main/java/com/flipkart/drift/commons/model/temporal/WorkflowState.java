@@ -2,6 +2,7 @@ package com.flipkart.drift.commons.model.temporal;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.sdk.model.client.IssueDetail;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.sdk.model.response.View;
 import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import lombok.AllArgsConstructor;
@@ -25,4 +26,6 @@ public class WorkflowState implements Serializable {
     private View view;
     private String currentNodeRef;
     private IssueDetail issueDetail;
+    /** Workflow-level execution mode set when the workflow was started; null for legacy workflows (treated as SYNC). */
+    private WorkflowExecutionMode workflowExecutionMode;
 }

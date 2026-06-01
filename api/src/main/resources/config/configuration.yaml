@@ -28,6 +28,7 @@ redisConfiguration:
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
+  redisEnabled: false  # set to false in environments without Redis; requires ASYNC executionMode
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
@@ -51,3 +52,12 @@ temporalTaskQueue: ${TEMPORAL_TASK_QUEUE}
 hadoopUserName: ${HADOOP_USERNAME}
 
 hadoopLoginUser: ${HADOOP_LOGIN_USER}
+
+# DNS-fanout cache invalidation (used when redisEnabled=false).
+# Set headlessServiceHost to the K8s headless service DNS name for worker pods so that
+# InetAddress.getAllByName() resolves to all pod IPs.
+workerInvalidationConfig:
+  headlessServiceHost: ${WORKER_HEADLESS_HOST:}
+  adminPort: 5601
+  perPodTimeoutMs: 2000
+  enabled: true
