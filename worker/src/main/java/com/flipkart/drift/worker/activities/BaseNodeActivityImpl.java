@@ -94,12 +94,14 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
         resolveInlineWaitConfigVar(activityThinRequest.getWorkflowNode(), activityRequest, response);
 
         // Step 2b: If node is marked as terminal (end=true) and the node's own status is still
-        // transitional (RUNNING or WAITING), override to COMPLETED so all node types correctly
-        // terminate the workflow. FAILED, COMPLETED, and ASYNC_COMPLETE are intentional and preserved.
+        // transitional (RUNNING), override to COMPLETED so all node types correctly terminate the workflow.
+        // FAILED, COMPLETED, ASYNC_COMPLETE, and WAITING are intentional and preserved —
+        // WAITING must not be overridden so WaitNodes with end=true still park for an event.
         if (Boolean.TRUE.equals(activityRequest.getIsTerminal())
                 && response.getWorkflowStatus() != WorkflowStatus.FAILED
                 && response.getWorkflowStatus() != WorkflowStatus.COMPLETED
-                && response.getWorkflowStatus() != WorkflowStatus.ASYNC_COMPLETE) {
+                && response.getWorkflowStatus() != WorkflowStatus.ASYNC_COMPLETE
+                && response.getWorkflowStatus() != WorkflowStatus.WAITING) {
             response.setWorkflowStatus(WorkflowStatus.COMPLETED);
         }
 
