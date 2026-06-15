@@ -21,6 +21,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -123,7 +124,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
         List<String> expected = this.workflowState.getExpectedEventTypes();
         boolean met;
         if (semantics == WaitSemantics.ANY) {
-            met = received != null && !received.isEmpty();
+            met = received != null && expected != null && !Collections.disjoint(received, expected);
         } else {
             // ALL
             met = received != null && expected != null && received.containsAll(expected);

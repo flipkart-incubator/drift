@@ -254,7 +254,7 @@ public class WorkflowNodeExecutor {
         List<String> expected = this.workflowState.getExpectedEventTypes();
         boolean met;
         if (semantics == WaitSemantics.ANY) {
-            met = received != null && !received.isEmpty();
+            met = received != null && expected != null && !Collections.disjoint(received, expected);
         } else {
             // ALL
             met = received != null && expected != null && received.containsAll(expected);
