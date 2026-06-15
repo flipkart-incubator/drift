@@ -1,8 +1,13 @@
 package com.flipkart.drift.worker.workflows;
 
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
+import com.flipkart.drift.commons.model.enums.WaitSemantics;
+import com.flipkart.drift.commons.model.enums.WaitType;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.commons.model.node.ChildNode;
+import com.flipkart.drift.commons.model.node.WaitNode;
+import com.flipkart.drift.commons.model.waitConfig.OnEventConfig;
+import com.flipkart.drift.commons.model.waitConfig.WaitConfig;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.worker.activities.ReturnControlActivity;
 import com.flipkart.drift.worker.activities.WorkflowContextManagerActivity;
@@ -32,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
 import java.util.*;
+import java.util.List;
 
 import static com.flipkart.drift.worker.Utility.WorkerUtility.generateChildWfId;
 import static com.flipkart.drift.worker.util.Constants.VERSION;
@@ -104,6 +110,7 @@ public class WorkflowNodeExecutor {
             }
             if (updateState) {
                 updateWorkflowState(response, currentNode);
+                applyOnEventWaitState(currentNode, nodeDefinition, response);
             }
             return response;
 
@@ -133,6 +140,10 @@ public class WorkflowNodeExecutor {
                 break;
             case DELEGATED:
                 handleDelegatedState(workflowId, activityThinResponse);
+                break;
+            case RUNNING:
+                // Early ON_EVENT signal(s) satisfied the condition before the WaitNode was reached.
+                // No park needed — execution continues to the next node normally.
                 break;
             default:
                 logger.warn("Unknown workflow status: {}", this.workflowState.getStatus());
@@ -181,6 +192,77 @@ public class WorkflowNodeExecutor {
             logger.error("Error while executing disconnected node: {}", e.getMessage(), e);
             return buildResponse(workflowUtilityRequest, WorkflowUtilityStatus.FAILURE, new ActivityResponse());
         }
+    }
+
+    /**
+     * After an activity completes, check whether ON_EVENT wait state needs to be initialised.
+     * Two sources: WaitNode with ON_EVENT config (Approach 1) and inline waitConfig on the
+     * WorkflowNode wrapper (Approach 2). Both funnel into the same Workflow.await() park.
+     */
+    private void applyOnEventWaitState(WorkflowNode currentNode, NodeDefinition nodeDefinition, ActivityThinResponse response) {
+        // Approach 1: WaitNode with ON_EVENT config — activity already returned WAITING;
+        // copy the event config into WorkflowState so the signal handler can evaluate it.
+        // resolvedExpectedEventTypes from the activity takes priority (Groovy script result).
+        if (nodeDefinition.getType() == NodeType.WAIT) {
+            WaitNode waitNode = (WaitNode) nodeDefinition;
+            if (WaitType.ON_EVENT == waitNode.getWaitType()) {
+                initOnEventState(waitNode.getTypedConfig(OnEventConfig.class), response.getResolvedExpectedEventTypes());
+                if (isOnEventConditionMet()) {
+                    // Early signal(s) already satisfied the condition before we reached this WaitNode.
+                    // Override WAITING back to RUNNING so Workflow.await() unblocks immediately.
+                    logger.info("WfId: {} ON_EVENT condition already met by early signal(s), skipping park", workflowState.getWorkflowId());
+                    this.workflowState.setStatus(WorkflowStatus.RUNNING);
+                }
+            }
+            return;
+        }
+
+        // Approach 2: any node type can declare an optional inline waitConfig.
+        // Dynamic resolution via script is not supported here (v1) — workflow thread cannot
+        // call HBase. Only static expectedEventTypes is used for inline waitConfig.
+        WaitConfig inlineWait = currentNode.getWaitConfig();
+        if (inlineWait != null && WaitType.ON_EVENT == inlineWait.getWaitType()) {
+            initOnEventState((OnEventConfig) inlineWait, response.getResolvedExpectedEventTypes());
+            if (isOnEventConditionMet()) {
+                logger.info("WfId: {} inline ON_EVENT condition already met by early signal(s), skipping park", workflowState.getWorkflowId());
+            } else {
+                this.workflowState.setStatus(WorkflowStatus.WAITING);
+            }
+        }
+    }
+
+    /**
+     * @param resolvedTypes  Groovy-resolved list from the activity (non-null → takes priority).
+     *                       Null for inline waitConfig path where script resolution is not supported.
+     */
+    private void initOnEventState(OnEventConfig config, List<String> resolvedTypes) {
+        List<String> effective = (resolvedTypes != null && !resolvedTypes.isEmpty())
+                ? resolvedTypes
+                : config.getExpectedEventTypes();
+        this.workflowState.setExpectedEventTypes(effective);
+        this.workflowState.setWaitSemantics(config.getWaitSemantics() != null ? config.getWaitSemantics() : WaitSemantics.ALL);
+        // Preserve any events received before this WaitNode was reached (early signals).
+        // Only initialise the set if it has never been populated.
+        if (this.workflowState.getReceivedEventTypes() == null) {
+            this.workflowState.setReceivedEventTypes(new HashSet<>());
+        }
+    }
+
+    private boolean isOnEventConditionMet() {
+        WaitSemantics semantics = this.workflowState.getWaitSemantics();
+        Set<String> received = this.workflowState.getReceivedEventTypes();
+        List<String> expected = this.workflowState.getExpectedEventTypes();
+        boolean met;
+        if (semantics == WaitSemantics.ANY) {
+            met = received != null && !received.isEmpty();
+        } else {
+            // ALL
+            met = received != null && expected != null && received.containsAll(expected);
+        }
+        if (met && expected != null && received != null) {
+            received.removeAll(expected);
+        }
+        return met;
     }
 
     private void handleWaitingState(String workflowId, ActivityThinResponse activityThinResponse) {

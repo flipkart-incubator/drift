@@ -56,7 +56,7 @@ public class TemporalService {
     }
 
     public WorkflowResponse startWorkflow(WorkflowStartRequest workflowStartRequest) {
-        if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().isBlank()) {
+        if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().trim().isEmpty()) {
             workflowStartRequest.setWorkflowId(utility.generateWorkflowId(null, false));
         }
         workflowStartRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
@@ -118,11 +118,14 @@ public class TemporalService {
             workflowResumeRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowResumeRequest.getWorkflowId());
 
-            // Determine execution mode from the running workflow's persisted state
+            // Request-level mode takes priority (external event callers set ASYNC here).
+            // Falls back to the mode persisted when the workflow was started.
             WorkflowState currentState = workflow.getWorkflowState();
-            WorkflowExecutionMode executionMode = currentState.getWorkflowExecutionMode() != null
-                    ? currentState.getWorkflowExecutionMode()
-                    : WorkflowExecutionMode.SYNC;
+            WorkflowExecutionMode executionMode = workflowResumeRequest.getWorkflowExecutionMode() != null
+                    ? workflowResumeRequest.getWorkflowExecutionMode()
+                    : (currentState.getWorkflowExecutionMode() != null
+                            ? currentState.getWorkflowExecutionMode()
+                            : WorkflowExecutionMode.SYNC);
 
             if (executionMode == WorkflowExecutionMode.ASYNC) {
                 workflow.resumeWorkflow(workflowResumeRequest);
