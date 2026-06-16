@@ -14,11 +14,14 @@ import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.worker.temporal.OptionsStore;
+import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.CanceledFailure;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
@@ -28,6 +31,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     private final Logger logger = io.temporal.workflow.Workflow.getLogger(GenericWorkflowImpl.class);
     private final WorkflowNodeExecutor nodeExecutor;
     private WorkflowState workflowState;
+    private final Map<String, Boolean> pausedNodes = new HashMap<>();
 
     public GenericWorkflowImpl() {
         this.workflowState = new WorkflowState();
@@ -90,6 +94,11 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     }
 
     @Override
+    public void resumeNode(String nodeId) {
+        pausedNodes.put(nodeId, true);
+    }
+
+    @Override
     public void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest) {
         this.workflowState.setStatus(WorkflowStatus.TERMINATED);
     }
@@ -105,8 +114,11 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
             ActivityThinResponse activityThinResponse;
             try {
                 logger.info("WfId : {} Running node: {}", workflowId, currentNode.getInstanceName());
-                activityThinResponse = nodeExecutor.executeNode(currentNode, threadContext, workflowStartRequest);
+                activityThinResponse = executeNodeWithPause(currentNode, threadContext, workflowStartRequest);
             } catch (Exception e) {
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    return;
+                }
                 currentNode = nodeExecutor.handleNodeExecutionError(e, workflow);
                 continue;
             }
@@ -114,6 +126,41 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                 nodeExecutor.handleNodeResponseStatus(workflowId, activityThinResponse, workflow, threadContext);
             }
             currentNode = workflow.getStates().get(currentNode.getNextNode());
+        }
+    }
+
+    private ActivityThinResponse executeNodeWithPause(WorkflowNode currentNode, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
+        String nodeId = currentNode.getInstanceName();
+        while (true) {
+            try {
+                return nodeExecutor.executeNode(currentNode, threadContext, workflowStartRequest);
+            } catch (ActivityFailure af) {
+                if (af.getCause() instanceof CanceledFailure) {
+                    throw af;
+                }
+                logger.warn("WfId: {} Node: {} failed — pausing for resume signal", workflowState.getWorkflowId(), nodeId);
+                workflowState.setStatus(WorkflowStatus.PAUSED_FOR_RESUME);
+                workflowState.setCurrentNodeRef(nodeId);
+                workflowState.setErrorMessage(af.getMessage());
+
+                pausedNodes.putIfAbsent(nodeId, false);
+                io.temporal.workflow.Workflow.await(
+                        () -> Boolean.TRUE.equals(pausedNodes.get(nodeId))
+                                || workflowState.getStatus() == WorkflowStatus.TERMINATED
+                );
+
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    throw ApplicationFailure.newNonRetryableFailure(
+                            "Workflow terminated while paused at node: " + nodeId, "WORKFLOW_TERMINATED"
+                    );
+                }
+
+                pausedNodes.remove(nodeId);
+                workflowState.setErrorMessage(null);
+                logger.info("WfId: {} Node: {} received resume signal — retrying", workflowState.getWorkflowId(), nodeId);
+                workflowState.setStatus(WorkflowStatus.RUNNING);
+                // loop back → retry node with fresh execution
+            }
         }
     }
 

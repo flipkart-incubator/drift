@@ -19,6 +19,9 @@ public interface GenericWorkflow {
     void resumeWorkflow(WorkflowResumeRequest workflowResumeRequest);
 
     @SignalMethod
+    void resumeNode(String nodeId);
+
+    @SignalMethod
     void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest);
 
     @QueryMethod

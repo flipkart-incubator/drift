@@ -110,6 +110,21 @@ public class TemporalService {
         }
     }
 
+    public void resumeNode(String workflowId, String nodeId) {
+        try {
+            GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowId);
+            workflow.resumeNode(nodeId);
+        } catch (WorkflowNotFoundException e) {
+            throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (WorkflowException e) {
+            log.error(WORKFLOW_EXCEPTION, e.getMessage(), e);
+            throw new ApiException(Response.Status.EXPECTATION_FAILED, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error during node resume: {}", e.getMessage(), e);
+            throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to resume node: " + e.getMessage());
+        }
+    }
+
     public void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest) {
         try {
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowTerminateRequest.getWorkflowId());

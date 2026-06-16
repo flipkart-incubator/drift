@@ -46,6 +46,16 @@ public class WorkflowResource {
         return temporalService.resumeWorkflow(workflowResumeRequest);
     }
 
+    @PUT
+    @Timed
+    @Path("/workflow/{workflowId}/node/{nodeId}/resume")
+    @ExceptionMetered
+    public Response resumeNode(@NotEmpty @PathParam("workflowId") String workflowId,
+                               @NotEmpty @PathParam("nodeId") String nodeId) {
+        temporalService.resumeNode(workflowId, nodeId);
+        return Response.ok().build();
+    }
+
     @DELETE
     @Timed
     @Path("/workflow/terminate/{workflowId}")
