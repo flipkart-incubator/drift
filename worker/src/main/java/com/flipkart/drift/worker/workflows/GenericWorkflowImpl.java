@@ -138,6 +138,11 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                 if (af.getCause() instanceof CanceledFailure) {
                     throw af;
                 }
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    throw ApplicationFailure.newNonRetryableFailure(
+                            "Workflow terminated while executing node: " + nodeId, "WORKFLOW_TERMINATED"
+                    );
+                }
                 logger.warn("WfId: {} Node: {} failed — pausing for resume signal", workflowState.getWorkflowId(), nodeId);
                 workflowState.setStatus(WorkflowStatus.PAUSED_FOR_RESUME);
                 workflowState.setCurrentNodeRef(nodeId);
