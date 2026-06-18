@@ -144,7 +144,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                     );
                 }
                 logger.warn("WfId: {} Node: {} failed — pausing for resume signal", workflowState.getWorkflowId(), nodeId);
-                workflowState.setStatus(WorkflowStatus.PAUSED_FOR_RESUME);
+                workflowState.setStatus(WorkflowStatus.FAILED);
                 workflowState.setCurrentNodeRef(nodeId);
                 workflowState.setErrorMessage(af.getMessage());
 
