@@ -55,6 +55,13 @@ jvm:
     xms: "1g"
     xmx: "1g"
 
+# Headless K8s service so the API can resolve all worker pod IPs for DNS-fanout
+# cache invalidation when Redis is unavailable.
+# DNS name from API pods: <release-name>-headless.<namespace>.svc.cluster.local
+headlessService:
+  enabled: true
+  adminPort: 5601
+
 # Config files - each config is in its own section for easy management
 # These are clean, human-readable configuration files
 configFiles:
