@@ -50,9 +50,9 @@ public class WorkflowResource {
     @Timed
     @Path("/workflow/{workflowId}/node/{nodeId}/resume")
     @ExceptionMetered
-    public Response resumeNode(@NotEmpty @PathParam("workflowId") String workflowId,
+    public Response unsidelineWorkflow(@NotEmpty @PathParam("workflowId") String workflowId,
                                @NotEmpty @PathParam("nodeId") String nodeId) {
-        temporalService.resumeNode(workflowId, nodeId);
+        temporalService.unsidelineWorkflow(workflowId, nodeId);
         return Response.ok().build();
     }
 

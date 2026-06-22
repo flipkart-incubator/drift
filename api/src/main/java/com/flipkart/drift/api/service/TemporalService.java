@@ -110,10 +110,10 @@ public class TemporalService {
         }
     }
 
-    public void resumeNode(String workflowId, String nodeId) {
+    public void unsidelineWorkflow(String workflowId, String nodeId) {
         try {
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowId);
-            workflow.resumeNode(nodeId);
+            workflow.unsidelineWorkflow(nodeId);
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {

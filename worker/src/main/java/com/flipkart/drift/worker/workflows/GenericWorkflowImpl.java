@@ -94,7 +94,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     }
 
     @Override
-    public void resumeNode(String nodeId) {
+    public void unsidelineWorkflow(String nodeId) {
         pausedNodes.put(nodeId, true);
     }
 

@@ -19,7 +19,7 @@ public interface GenericWorkflow {
     void resumeWorkflow(WorkflowResumeRequest workflowResumeRequest);
 
     @SignalMethod
-    void resumeNode(String nodeId);
+    void unsidelineWorkflow(String nodeId);
 
     @SignalMethod
     void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest);
