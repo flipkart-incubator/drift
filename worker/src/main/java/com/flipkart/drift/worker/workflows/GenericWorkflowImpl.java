@@ -115,13 +115,12 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
             ActivityThinResponse activityThinResponse;
             try {
                 logger.info("WfId : {} Running node: {}", workflowId, currentNode.getInstanceName());
-                activityThinResponse = executeNodeWithPause(currentNode, threadContext, workflowStartRequest);
+                activityThinResponse = executeNodeWithPause(currentNode, threadContext, workflowStartRequest, workflow);
             } catch (Exception e) {
                 if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
                     return;
                 }
-                currentNode = nodeExecutor.handleNodeExecutionError(e, workflow);
-                continue;
+                throw e;
             }
             if (activityThinResponse != null) {
                 nodeExecutor.handleNodeResponseStatus(workflowId, activityThinResponse, workflow, threadContext);
@@ -130,7 +129,8 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
         }
     }
 
-    private ActivityThinResponse executeNodeWithPause(WorkflowNode currentNode, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
+    private ActivityThinResponse executeNodeWithPause(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                       WorkflowStartRequest workflowStartRequest, Workflow workflow) {
         String nodeId = currentNode.getInstanceName();
         while (true) {
             try {
@@ -144,10 +144,13 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                             "Workflow terminated while executing node: " + nodeId, "WORKFLOW_TERMINATED"
                     );
                 }
-                logger.warn("WfId: {} Node: {} failed — pausing for resume signal", workflowState.getWorkflowId(), nodeId);
+
+                runFallbackNode(workflow, threadContext, nodeId);
+
+                logger.info("WfId: {} Node: {} failed — pausing for unsideline signal", workflowState.getWorkflowId(), nodeId);
                 workflowState.setStatus(WorkflowStatus.FAILED);
                 workflowState.setCurrentNodeRef(nodeId);
-                workflowState.setErrorMessage(af.getMessage());
+                workflowState.setErrorMessage("Error message: " + af.getMessage());
 
                 pausedNodes.putIfAbsent(nodeId, false);
                 io.temporal.workflow.Workflow.await(
@@ -163,10 +166,27 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
 
                 pausedNodes.remove(nodeId);
                 workflowState.setErrorMessage(null);
-                logger.info("WfId: {} Node: {} received resume signal — retrying", workflowState.getWorkflowId(), nodeId);
+                logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeId);
                 workflowState.setStatus(WorkflowStatus.RUNNING);
-                // loop back → retry node with fresh execution
+                // loop back → retry currentNode with fresh execution
             }
+        }
+    }
+
+    private void runFallbackNode(Workflow workflow, Map<String, String> threadContext, String failedNodeId) {
+        WorkflowNode fallbackNode = workflow.getStates().get(workflow.getDefaultFailureNode());
+        if (fallbackNode == null) {
+            logger.warn("WfId: {} No defaultFailureNode configured — skipping fallback for failed node: {}",
+                    workflowState.getWorkflowId(), failedNodeId);
+            return;
+        }
+        try {
+            logger.info("WfId: {} Running fallback node: {} for failed node: {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId);
+            nodeExecutor.executeNodeWithoutStatusUpdate(fallbackNode, threadContext);
+        } catch (Exception e) {
+            logger.error("WfId: {} Fallback node: {} failed for node: {} — {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId, e.getMessage(), e);
         }
     }
 
