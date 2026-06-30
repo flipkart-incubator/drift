@@ -48,7 +48,7 @@ public class WorkflowResource {
 
     @PUT
     @Timed
-    @Path("/workflow/{workflowId}/node/{nodeId}/resume")
+    @Path("/workflow/{workflowId}/node/{nodeId}/unsideline")
     @ExceptionMetered
     public Response unsidelineWorkflow(@NotEmpty @PathParam("workflowId") String workflowId,
                                @NotEmpty @PathParam("nodeId") String nodeId) {
