@@ -18,6 +18,7 @@ redisConfiguration:
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
+  redisEnabled: false  # set to false in environments without Redis; requires ASYNC executionMode
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1

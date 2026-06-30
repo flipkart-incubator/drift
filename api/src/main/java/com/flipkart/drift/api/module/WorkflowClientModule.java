@@ -1,6 +1,7 @@
 package com.flipkart.drift.api.module;
 
 import com.codahale.metrics.MetricRegistry;
+import com.flipkart.drift.api.client.CacheInvalidationClient;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.IConnectionProvider;
@@ -9,6 +10,7 @@ import com.flipkart.drift.api.config.RedisConfiguration;
 import com.flipkart.drift.api.exception.mapper.ApiExceptionMapper;
 import com.google.inject.*;
 import com.google.inject.name.Names;
+import javax.annotation.Nullable;
 import com.netflix.config.DynamicProperty;
 import io.dropwizard.setup.Environment;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,10 @@ public class WorkflowClientModule extends AbstractModule {
     }
 
     private JedisSentinelPool provideJedisPool() {
+        if (!redisConfiguration.isRedisEnabled()) {
+            log.info("Redis is disabled (redisEnabled=false), skipping JedisSentinelPool creation");
+            return null;
+        }
         try {
             final RedisConfiguration redisConfiguration = this.redisConfiguration;
             String hosts = redisConfiguration.getSentinels();
@@ -53,8 +59,6 @@ public class WorkflowClientModule extends AbstractModule {
         } catch (Exception e) {
             log.error("Failed to Connected to RedisDao Server {}", e.getMessage(), e);
             return null;
-            // TODO : Clean this up ... Change made so that bootstrap shouldn't be failing on redis failure
-//            throw new RedisStoreException(Response.Status.INTERNAL_SERVER_ERROR, "Unable to init redis config", e.getMessage());
         }
     }
 
@@ -170,6 +174,7 @@ public class WorkflowClientModule extends AbstractModule {
 
     @Provides
     @Singleton
+    @Nullable
     public JedisSentinelPool getJedisSentinelPool() {
         return this.jedisSentinelPool;
     }
@@ -178,6 +183,12 @@ public class WorkflowClientModule extends AbstractModule {
     @Singleton
     public DriftConfiguration getDriftConfiguration() {
         return this.driftConfiguration;
+    }
+
+    @Provides
+    @Singleton
+    public CacheInvalidationClient getCacheInvalidationClient() {
+        return new CacheInvalidationClient(this.driftConfiguration, this.jedisSentinelPool);
     }
 
 }

@@ -1,6 +1,7 @@
 package com.flipkart.drift.worker.bootstrap;
 
 import com.flipkart.drift.persistence.bootstrap.DriftEntityModule;
+import com.flipkart.drift.worker.task.CacheInvalidationTask;
 import com.flipkart.drift.worker.util.AuthNTokenGenerator;
 import com.flipkart.drift.worker.config.DriftWorkerConfiguration;
 import com.flipkart.drift.worker.resources.DriftWorkerResource;
@@ -93,6 +94,7 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
         environment.lifecycle().manage(new TemporalWorkerManaged(injector, driftWorkerConfiguration, metricsScope));
         environment.lifecycle().manage(injector.getInstance(RedisCacheInvalidator.class));
         environment.jersey().register(injector.getInstance(DriftWorkerResource.class));
+        environment.admin().addTask(injector.getInstance(CacheInvalidationTask.class));
     }
 
     private static ConcurrentCompositeConfiguration getConcurrentCompositeConfiguration(DriftWorkerConfiguration configuration) {

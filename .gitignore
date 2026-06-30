@@ -47,6 +47,7 @@ logs/
 /do-not-commit
 *-secret*
 *-secrets*
+*-credentials
 *.key
 *.pem
 .cursor

@@ -1,6 +1,7 @@
 package com.flipkart.drift.worker.workflows;
 
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.commons.model.node.ChildNode;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.worker.activities.ReturnControlActivity;
@@ -184,7 +185,10 @@ public class WorkflowNodeExecutor {
 
     private void handleWaitingState(String workflowId, ActivityThinResponse activityThinResponse) {
         this.workflowState.setView(activityThinResponse.getView());
-        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        // Notify API via Redis only in SYNC mode; ASYNC workflows don't block the API thread
+        if (workflowState.getWorkflowExecutionMode() != WorkflowExecutionMode.ASYNC) {
+            io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        }
         io.temporal.workflow.Workflow.await(() -> {
             WorkflowStatus status = this.workflowState.getStatus();
             return !(status.equals(WorkflowStatus.WAITING) || status.equals(WorkflowStatus.TERMINATED));
@@ -211,7 +215,9 @@ public class WorkflowNodeExecutor {
         if (activityThinResponse.getErrorResponse() != null) {
             this.workflowState.setErrorMessage(activityThinResponse.getErrorResponse().asText());
         }
-        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        if (workflowState.getWorkflowExecutionMode() != WorkflowExecutionMode.ASYNC) {
+            io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        }
         throw ApplicationFailure.newNonRetryableFailure(
                 "Encountered a failure node",
                 "FAILURE_NODE"
@@ -221,7 +227,9 @@ public class WorkflowNodeExecutor {
     private void handleCompletedState(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
         this.workflowState.setView(activityThinResponse.getView());
         this.workflowState.setDisposition(activityThinResponse.getDisposition());
-        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        if (workflowState.getWorkflowExecutionMode() != WorkflowExecutionMode.ASYNC) {
+            io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
+        }
 
         // Execute post-workflow completion nodes if they exist
         if (workflow != null && workflow.getPostWorkflowCompletionNodes() != null && !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
@@ -248,8 +256,10 @@ public class WorkflowNodeExecutor {
     }
 
     private void handleDelegatedState(String workflowId, ActivityThinResponse activityThinResponse) {
-        io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions)
-                .exec(workflowId);
+        if (workflowState.getWorkflowExecutionMode() != WorkflowExecutionMode.ASYNC) {
+            io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions)
+                    .exec(workflowId);
+        }
     }
 
     private void updateWorkflowState(ActivityThinResponse response, WorkflowNode currentNode) {

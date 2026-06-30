@@ -37,6 +37,9 @@ env:
   HADOOP_USERNAME: "your-hadoop-username"
   HADOOP_LOGIN_USER: "your-hadoop-login-user"
   ZOOKEEPER_QUORUM_HOT: "your-zookeeper-quorum"
+  # DNS name of the worker headless service for cache invalidation fanout (used when redisEnabled=false).
+  # Format: <worker-release-name>-headless.<namespace>.svc.cluster.local
+  WORKER_HEADLESS_HOST: "drift-worker-headless.drift.svc.cluster.local"
 
 jvm:
   heapSize:

@@ -3,6 +3,7 @@ package com.flipkart.drift.api.service;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowTerminateRequest;
@@ -10,6 +11,7 @@ import com.flipkart.drift.sdk.model.request.WorkflowUtilityRequest;
 import com.flipkart.drift.sdk.model.response.View;
 import com.flipkart.drift.sdk.model.response.WorkflowResponse;
 import com.flipkart.drift.sdk.model.response.WorkflowUtilityResponse;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.api.service.utils.Utility;
 import com.flipkart.drift.workflows.GenericWorkflow;
@@ -63,6 +65,10 @@ public class TemporalService {
 
     public WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest) {
         String workflowId = workflowStartRequest.getWorkflowId();
+        WorkflowExecutionMode executionMode = workflowStartRequest.getWorkflowExecutionMode() != null
+                ? workflowStartRequest.getWorkflowExecutionMode()
+                : WorkflowExecutionMode.SYNC;
+
         GenericWorkflow workflow;
         try {
             workflow = client.newWorkflowStub(
@@ -74,11 +80,28 @@ public class TemporalService {
                             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING)
                             .build()
             );
-            redisPubSubService.subscribeAndExecute(workflowId, () -> {
+
+            if (executionMode == WorkflowExecutionMode.ASYNC) {
                 WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
-                return null;
-            }, START);
-            return buildResponseAndReturn(workflow);
+                return WorkflowResponse.builder()
+                        .workflowId(workflowId)
+                        .workflowStatus(WorkflowStatus.RUNNING)
+                        .build();
+            } else {
+                // SYNC mode: block until workflow reaches a terminal state via Redis
+                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "SYNC execution mode requires Redis to be enabled. " +
+                            "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
+                }
+                redisPubSubService.subscribeAndExecute(workflowId, () -> {
+                    WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
+                    return null;
+                }, START);
+                return buildResponseAndReturn(workflow);
+            }
+        } catch (ApiException e) {
+            throw e;
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
@@ -94,11 +117,23 @@ public class TemporalService {
         try {
             workflowResumeRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowResumeRequest.getWorkflowId());
-            redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
+
+            // Determine execution mode from the running workflow's persisted state
+            WorkflowState currentState = workflow.getWorkflowState();
+            WorkflowExecutionMode executionMode = currentState.getWorkflowExecutionMode() != null
+                    ? currentState.getWorkflowExecutionMode()
+                    : WorkflowExecutionMode.SYNC;
+
+            if (executionMode == WorkflowExecutionMode.ASYNC) {
                 workflow.resumeWorkflow(workflowResumeRequest);
-                return null;
-            }, RESUME);
-            return buildResponseAndReturn(workflow);
+                return buildResponseAndReturn(workflow);
+            } else {
+                redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
+                    workflow.resumeWorkflow(workflowResumeRequest);
+                    return null;
+                }, RESUME);
+                return buildResponseAndReturn(workflow);
+            }
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
@@ -107,6 +142,21 @@ public class TemporalService {
         } catch (Exception e) {
             log.error("Unexpected error during workflow resume: {}", e.getMessage(), e);
             throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to resume workflow: " + e.getMessage());
+        }
+    }
+
+    public void unsidelineWorkflow(String workflowId, String nodeId) {
+        try {
+            GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowId);
+            workflow.unsidelineWorkflow(nodeId);
+        } catch (WorkflowNotFoundException e) {
+            throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (WorkflowException e) {
+            log.error(WORKFLOW_EXCEPTION, e.getMessage(), e);
+            throw new ApiException(Response.Status.EXPECTATION_FAILED, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error during node resume: {}", e.getMessage(), e);
+            throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to resume node: " + e.getMessage());
         }
     }
 
@@ -161,7 +211,3 @@ public class TemporalService {
                 .build();
     }
 }
-
-
-
-
