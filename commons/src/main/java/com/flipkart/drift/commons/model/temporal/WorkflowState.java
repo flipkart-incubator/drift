@@ -1,6 +1,7 @@
 package com.flipkart.drift.commons.model.temporal;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.flipkart.drift.commons.model.enums.NodeStatus;
 import com.flipkart.drift.commons.model.enums.WaitSemantics;
 import com.flipkart.drift.sdk.model.client.IssueDetail;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
@@ -12,8 +13,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Data
@@ -34,14 +37,25 @@ public class WorkflowState implements Serializable {
     /** Workflow-level execution mode set when the workflow was started; null for legacy workflows (treated as SYNC). */
     private WorkflowExecutionMode workflowExecutionMode;
 
-    // --- ON_EVENT wait tracking (populated when a WaitNode or inline waitConfig parks the workflow) ---
+    // --- ON_EVENT wait tracking (serial path: global; parallel path: per-node in nodeStates) ---
 
-    /** Event types the workflow is waiting for; copied from OnEventConfig at park time. */
+    /** Event types the workflow is waiting for; copied from OnEventConfig at park time (serial path). */
     private List<String> expectedEventTypes;
 
-    /** Semantics for the wait condition; ANY (default) or ALL. */
+    /** Semantics for the wait condition; ANY or ALL. */
     private WaitSemantics waitSemantics;
 
     /** Accumulates event types received via resumeWorkflow signals while parked. */
     private Set<String> receivedEventTypes = new HashSet<>();
+
+    // --- Parallel execution tracking ---
+
+    /** Per-node state for nodes in WAITING, SCHEDULER_WAITING, RUNNING, or SKIPPED. */
+    private Map<String, NodeState> nodeStates = new HashMap<>();
+
+    /** Nodes pruned by BRANCH selection (non-selected arms). */
+    private Set<String> skippedNodes = new HashSet<>();
+
+    /** BRANCH instanceName → selected next node. */
+    private Map<String, String> branchSelections = new HashMap<>();
 }

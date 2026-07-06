@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -30,4 +31,10 @@ public class WorkflowNode {
      * Null for nodes that do not need post-execution wait.
      */
     private WaitConfig waitConfig;
+
+    /**
+     * Parallel workflows only: predecessor instanceNames that must complete successfully
+     * before this node may start. Serial workflows use nextNode instead.
+     */
+    private List<String> dependsOn;
 }
