@@ -1,0 +1,74 @@
+{
+  "id": "parallel-vendor-notify-workflow",
+  "comment": "Example parallel workflow: fan-out vendor notifications with ON_EVENT waits, fan-in to processResults",
+  "executionType": "PARALLEL",
+  "workflowExecutionMode": "ASYNC",
+  "startNode": "fetchOrder",
+  "states": {
+    "fetchOrder": {
+      "instanceName": "fetchOrder",
+      "nodeDefinition": {
+        "type": "HTTP",
+        "method": "GET",
+        "endpoint": "https://example.internal/orders/{{context.globalParams.params.orderId}}"
+      }
+    },
+    "notifyVendorA": {
+      "instanceName": "notifyVendorA",
+      "dependsOn": ["fetchOrder"],
+      "nodeDefinition": {
+        "type": "HTTP",
+        "method": "POST",
+        "endpoint": "https://vendor-a.example/notify"
+      },
+      "waitConfig": {
+        "waitType": "ON_EVENT",
+        "expectedEventTypes": ["CALLBACK_A1", "CALLBACK_A2"],
+        "waitSemantics": "ALL"
+      }
+    },
+    "notifyVendorB": {
+      "instanceName": "notifyVendorB",
+      "dependsOn": ["fetchOrder"],
+      "nodeDefinition": {
+        "type": "HTTP",
+        "method": "POST",
+        "endpoint": "https://vendor-b.example/notify"
+      },
+      "waitConfig": {
+        "waitType": "ON_EVENT",
+        "expectedEventTypes": ["CALLBACK_B"],
+        "waitSemantics": "ANY"
+      }
+    },
+    "notifyVendorC": {
+      "instanceName": "notifyVendorC",
+      "dependsOn": ["fetchOrder"],
+      "nodeDefinition": {
+        "type": "HTTP",
+        "method": "POST",
+        "endpoint": "https://vendor-c.example/notify"
+      }
+    },
+    "delayedAudit": {
+      "instanceName": "delayedAudit",
+      "dependsOn": ["fetchOrder"],
+      "nodeDefinition": {
+        "type": "WAIT",
+        "config": {
+          "waitType": "SCHEDULER_WAIT",
+          "duration": 300,
+          "executionMode": "ASYNC"
+        }
+      }
+    },
+    "processResults": {
+      "instanceName": "processResults",
+      "dependsOn": ["notifyVendorA", "notifyVendorB", "notifyVendorC", "delayedAudit"],
+      "nodeDefinition": {
+        "type": "GROOVY",
+        "script": "return [status: 'done', vendorA: context.notifyVendorA, vendorB: context.notifyVendorB]"
+      }
+    }
+  }
+}

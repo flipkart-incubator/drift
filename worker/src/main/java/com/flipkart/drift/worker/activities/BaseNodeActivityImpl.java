@@ -83,7 +83,8 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
         activityRequest.setIsTerminal(activityThinRequest.getWorkflowNode().isEnd());
         activityRequest.setWorkflowId(workflowId);
         activityRequest.setThreadContext(activityThinRequest.getThreadContext());
-        updateContextWithNodeParameters(context.getContext(), activityThinRequest.getWorkflowNode().getParameters());
+        updateContextWithNodeParameters(context.getContext(), activityThinRequest.getWorkflowNode().getParameters(),
+                activityThinRequest.getWorkflowNode(), activityThinRequest.isParallelExecution());
         activityRequest.setContext(context.getContext());
         activityRequest.setNodeDefinition(activityThinRequest.getNodeDefinition());
         // Step 2: Execute the actual logic
@@ -115,9 +116,14 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
     }
 
     private void updateContextWithNodeParameters(ObjectNode context,
-                                                 Map<String, String> parameters) {
+                                                 Map<String, String> parameters,
+                                                 WorkflowNode workflowNode,
+                                                 boolean parallelExecution) {
         ObjectNode nodeParameters = NodeParameterEvaluator.evaluateNodeParameters(context, parameters);
-        context.set("nodeParameters", nodeParameters);
+        String key = parallelExecution
+                ? workflowNode.getInstanceName() + "_nodeParameters"
+                : "nodeParameters";
+        context.set(key, nodeParameters);
     }
 
     private String generateNodeIdentifier(WorkflowNode currentNode) {

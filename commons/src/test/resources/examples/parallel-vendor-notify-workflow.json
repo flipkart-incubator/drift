@@ -1,0 +1,31 @@
+{
+  "id": "parallel-vendor-notify-workflow",
+  "executionType": "PARALLEL",
+  "workflowExecutionMode": "ASYNC",
+  "startNode": "fetchOrder",
+  "states": {
+    "fetchOrder": {
+      "instanceName": "fetchOrder"
+    },
+    "notifyVendorA": {
+      "instanceName": "notifyVendorA",
+      "dependsOn": ["fetchOrder"]
+    },
+    "notifyVendorB": {
+      "instanceName": "notifyVendorB",
+      "dependsOn": ["fetchOrder"]
+    },
+    "notifyVendorC": {
+      "instanceName": "notifyVendorC",
+      "dependsOn": ["fetchOrder"]
+    },
+    "delayedAudit": {
+      "instanceName": "delayedAudit",
+      "dependsOn": ["fetchOrder"]
+    },
+    "processResults": {
+      "instanceName": "processResults",
+      "dependsOn": ["notifyVendorA", "notifyVendorB", "notifyVendorC", "delayedAudit"]
+    }
+  }
+}
