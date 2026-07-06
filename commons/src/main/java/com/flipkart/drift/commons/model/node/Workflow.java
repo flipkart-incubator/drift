@@ -3,6 +3,9 @@ package com.flipkart.drift.commons.model.node;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.commons.exception.ApiException;
 import com.flipkart.drift.commons.exception.ErrorMessages;
+import com.flipkart.drift.commons.validation.ParallelWorkflowValidator;
+import com.flipkart.drift.commons.model.enums.ExecutionType;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,6 +29,16 @@ public class Workflow {
     private Map<String, WorkflowNode> states;
     private List<String> postWorkflowCompletionNodes;
 
+    /** Absent or SEQUENTIAL → serial nextNode chain. PARALLEL → dependsOn DAG engine. */
+    private ExecutionType executionType;
+
+    /** Execution mode for PARALLEL workflows (default ASYNC). Ignored for SEQUENTIAL. */
+    private WorkflowExecutionMode workflowExecutionMode;
+
+    public boolean isParallel() {
+        return executionType == ExecutionType.PARALLEL;
+    }
+
     public void validateWFFields() {
         if (StringUtils.isEmpty(id)) {
             throw new ApiException(Response.Status.BAD_REQUEST, "id can't be empty");
@@ -39,6 +52,7 @@ public class Workflow {
         for (Map.Entry<String, WorkflowNode> entry : states.entrySet()) {
             validateNodeRetryAndTimeout(entry.getKey(), entry.getValue());
         }
+        ParallelWorkflowValidator.validate(this);
     }
 
     private static void validateNodeRetryAndTimeout(String nodeName, WorkflowNode node) {

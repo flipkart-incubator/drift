@@ -71,7 +71,17 @@ public class WorkflowNodeExecutor {
         executeNode(currentNode, threadContext, false);
     }
 
-    private ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, boolean updateState) {
+    public ActivityThinResponse executeParallelNode(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                     WorkflowStartRequest workflowStartRequest) {
+        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD) {
+            invokeChild(workflowStartRequest, currentNode);
+            return null;
+        }
+        return executeNodeInternal(currentNode, threadContext, true, false);
+    }
+
+    private ActivityThinResponse executeNodeInternal(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                      boolean parallelExecution, boolean updateState) {
         NodeDefinition nodeDefinition = currentNode.getNodeDefinition();
         if (nodeDefinition == null) {
             throw ApplicationFailure.newNonRetryableFailure(
@@ -81,10 +91,9 @@ public class WorkflowNodeExecutor {
         }
 
         try {
-            String logPrefix = updateState ? "Executing node" : "Executing post-workflow node";
-            logger.info("{}: {} with type: {}", logPrefix, currentNode.getInstanceName(), nodeDefinition.getType());
+            logger.info("Executing node: {} with type: {} (parallel={})",
+                    currentNode.getInstanceName(), nodeDefinition.getType(), parallelExecution);
 
-            // Determine if we should use local activity or standard activity
             boolean isLocalActivity = localActivityTypes.contains(nodeDefinition.getType());
             ActivityStub activityStub = isLocalActivity ?
                     io.temporal.workflow.Workflow.newUntypedLocalActivityStub(OptionsStore.localActivityOptions) :
@@ -96,9 +105,9 @@ public class WorkflowNodeExecutor {
                     .nodeDefinition(nodeDefinition)
                     .workflowNode(currentNode)
                     .threadContext(threadContext)
+                    .parallelExecution(parallelExecution)
                     .build();
 
-            // Execute the activity
             ActivityThinResponse response = activityStub.execute(
                     getActivityType(nodeDefinition.getType()),
                     ActivityThinResponse.class,
@@ -111,17 +120,20 @@ public class WorkflowNodeExecutor {
                         "ACTIVITY_RESPONSE_NULL"
                 );
             }
-            if (updateState) {
+            if (!parallelExecution && updateState) {
                 updateWorkflowState(response, currentNode);
                 applyOnEventWaitState(currentNode, nodeDefinition, response);
             }
             return response;
 
         } catch (Exception e) {
-            String errorPrefix = updateState ? "Error executing node" : "Error executing post-workflow node";
-            logger.error("{} {}: {}", errorPrefix, currentNode.getInstanceName(), e.getMessage(), e);
+            logger.error("Error executing node {}: {}", currentNode.getInstanceName(), e.getMessage(), e);
             throw e;
         }
+    }
+
+    private ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, boolean updateState) {
+        return executeNodeInternal(currentNode, threadContext, false, updateState);
     }
 
     public void handleNodeResponseStatus(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
