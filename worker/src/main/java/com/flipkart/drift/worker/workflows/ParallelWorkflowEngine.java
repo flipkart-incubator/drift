@@ -10,11 +10,14 @@ import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.NodeState;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.commons.model.waitConfig.OnEventConfig;
+import com.flipkart.drift.commons.model.waitConfig.SchedulerWaitConfig;
 import com.flipkart.drift.commons.model.waitConfig.WaitConfig;
 import com.flipkart.drift.commons.parallel.ParallelWaitConditions;
 import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
+import com.flipkart.drift.worker.activities.BranchSchedulerWaitActivity;
 import com.flipkart.drift.worker.model.activity.ActivityThinResponse;
+import com.flipkart.drift.worker.temporal.OptionsStore;
 import io.temporal.workflow.Async;
 import org.slf4j.Logger;
 
@@ -144,6 +147,10 @@ public class ParallelWorkflowEngine {
             response = nodeExecutor.executeParallelNode(node, threadContext, startRequest);
         } catch (Exception e) {
             logger.error("WfId: {} Node {} failed: {}", workflowState.getWorkflowId(), nodeName, e.getMessage());
+            if (node.getNodeDefinition() != null
+                    && node.getNodeDefinition().getType() == NodeType.BRANCH) {
+                pruneAllBranchArms(nodeName);
+            }
             failedNodes.add(nodeName);
             checkTermination();
             return;
@@ -156,6 +163,9 @@ public class ParallelWorkflowEngine {
         }
 
         if (response.getWorkflowStatus() == WorkflowStatus.FAILED) {
+            if (node.getNodeDefinition() != null && node.getNodeDefinition().getType() == NodeType.BRANCH) {
+                pruneAllBranchArms(nodeName);
+            }
             failedNodes.add(nodeName);
             checkTermination();
             return;
@@ -187,6 +197,7 @@ public class ParallelWorkflowEngine {
     private void handleBranchCompletion(String branchName, ActivityThinResponse response) {
         String selectedNext = response.getNextNode();
         if (selectedNext == null) {
+            pruneAllBranchArms(branchName);
             failedNodes.add(branchName);
             checkTermination();
             return;
@@ -231,6 +242,13 @@ public class ParallelWorkflowEngine {
             }
         }
         workflowState.setSkippedNodes(skipped);
+    }
+
+    private void pruneAllBranchArms(String branchName) {
+        List<String> armTargets = branchTargetGroups.getOrDefault(branchName, Collections.emptyList());
+        for (String arm : armTargets) {
+            skipSubtree(arm);
+        }
     }
 
     private WaitKind resolveWaitKind(WorkflowNode node, ActivityThinResponse response) {
@@ -284,10 +302,37 @@ public class ParallelWorkflowEngine {
     }
 
     private void parkForScheduler(WorkflowNode node, ActivityThinResponse response) {
+        if (needsInlineSchedulerRegistration(node)) {
+            long duration = resolveSchedulerDuration(node);
+            BranchSchedulerWaitActivity schedulerActivity = io.temporal.workflow.Workflow.newActivityStub(
+                    BranchSchedulerWaitActivity.class, OptionsStore.activityOptions);
+            schedulerActivity.registerSchedulerWait(
+                    workflowState.getWorkflowId(), node.getInstanceName(), duration, threadContext);
+        }
         String syntheticType = ParallelWaitConditions.schedulerEventType(node.getInstanceName());
         NodeState nodeState = new NodeState(node.getInstanceName(), NodeStatus.SCHEDULER_WAITING,
                 List.of(syntheticType), null);
         parkUntilConditionMet(node, response, nodeState);
+    }
+
+    private boolean needsInlineSchedulerRegistration(WorkflowNode node) {
+        WaitConfig inline = node.getWaitConfig();
+        return inline != null && inline.getWaitType() == WaitType.SCHEDULER_WAIT;
+    }
+
+    private long resolveSchedulerDuration(WorkflowNode node) {
+        WaitConfig inline = node.getWaitConfig();
+        if (inline != null && inline.getWaitType() == WaitType.SCHEDULER_WAIT) {
+            SchedulerWaitConfig config = (SchedulerWaitConfig) inline;
+            return config.getDuration();
+        }
+        if (node.getNodeDefinition() != null && node.getNodeDefinition().getType() == NodeType.WAIT) {
+            WaitNode waitNode = (WaitNode) node.getNodeDefinition();
+            if (waitNode.getWaitType() == WaitType.SCHEDULER_WAIT) {
+                return waitNode.getTypedConfig(SchedulerWaitConfig.class).getDuration();
+            }
+        }
+        return 0L;
     }
 
     private void parkUntilConditionMet(WorkflowNode node, ActivityThinResponse response, NodeState nodeState) {
@@ -382,6 +427,12 @@ public class ParallelWorkflowEngine {
                 workflowState.setStatus(WorkflowStatus.FAILED);
             }
         }
+        if (workflowState.getStatus() == WorkflowStatus.COMPLETED
+                && workflow.getPostWorkflowCompletionNodes() != null
+                && !workflow.getPostWorkflowCompletionNodes().isEmpty()) {
+            logger.info("WfId: {} Running post-workflow completion nodes", workflowState.getWorkflowId());
+            nodeExecutor.runPostWorkflowCompletionNodes(workflow, threadContext);
+        }
     }
 
     private boolean hasRemainingWork() {
@@ -415,11 +466,10 @@ public class ParallelWorkflowEngine {
     }
 
     public String resolveNodeForEventType(String eventType) {
-        if (workflowState.getNodeStates() == null) {
-            return workflowState.getCurrentNodeRef();
+        if (workflowState.getNodeStates() == null || workflowState.getNodeStates().isEmpty()) {
+            return null;
         }
-        String resolved = ParallelWaitConditions.resolveNodeForEventType(
+        return ParallelWaitConditions.resolveNodeForEventType(
                 eventType, workflowState.getNodeStates().values());
-        return resolved != null ? resolved : workflowState.getCurrentNodeRef();
     }
 }

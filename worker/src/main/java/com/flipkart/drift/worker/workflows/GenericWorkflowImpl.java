@@ -65,6 +65,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
             }
             if (workflow.isParallel()) {
                 parallelExecutionActive = true;
+                this.workflowState.setExecutionType(com.flipkart.drift.commons.model.enums.ExecutionType.PARALLEL);
                 parallelEngine = new ParallelWorkflowEngine(workflowState, nodeExecutor);
                 resolveParallelExecutionMode(workflow, workflowStartRequest);
                 parallelEngine.execute(workflow, workflowStartRequest, workflowStartRequest.getThreadContext());
@@ -97,8 +98,10 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                     ? parallelEngine.resolveNodeForEventType(workflowResumeRequest.getEventType())
                     : this.workflowState.getCurrentNodeRef();
 
-            io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
-                    .resumeWorkflowState(workflowResumeRequest, nodeRef);
+            if (nodeRef != null) {
+                io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
+                        .resumeWorkflowState(workflowResumeRequest, nodeRef);
+            }
 
             String eventType = workflowResumeRequest.getEventType();
             if (eventType != null) {

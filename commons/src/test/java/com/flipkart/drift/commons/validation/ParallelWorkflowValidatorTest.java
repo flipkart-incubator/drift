@@ -87,6 +87,28 @@ class ParallelWorkflowValidatorTest {
         assertThrows(ApiException.class, () -> ParallelWorkflowValidator.validate(workflow));
     }
 
+    @Test
+    void duplicateInstanceName_rejected() {
+        WorkflowNode a = node("a", null);
+        WorkflowNode b = node("b", List.of("a"));
+        b.setInstanceName("a");
+        Workflow workflow = parallelWorkflow(Map.of("a", a, "b", b));
+        assertThrows(ApiException.class, () -> ParallelWorkflowValidator.validate(workflow));
+    }
+
+    @Test
+    void mustacheRefWithoutDependsOn_rejected() {
+        WorkflowNode fetch = node("fetch", null);
+        WorkflowNode aggregate = node("aggregate", List.of("fetch"));
+        aggregate.setParameters(Map.of("orderId", "{{context.notifyVendorA.orderId}}"));
+        Workflow workflow = parallelWorkflow(Map.of(
+                "fetch", fetch,
+                "notifyVendorA", node("notifyVendorA", List.of("fetch")),
+                "aggregate", aggregate
+        ));
+        assertThrows(ApiException.class, () -> ParallelWorkflowValidator.validate(workflow));
+    }
+
     private static Workflow parallelWorkflow(Map<String, WorkflowNode> states) {
         Workflow workflow = new Workflow();
         workflow.setId("test-parallel-wf");

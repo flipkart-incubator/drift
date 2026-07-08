@@ -4,6 +4,7 @@ import com.flipkart.drift.commons.exception.ApiException;
 import com.flipkart.drift.commons.model.enums.ExecutionType;
 import com.flipkart.drift.commons.model.enums.NodeType;
 import com.flipkart.drift.commons.model.enums.WaitType;
+import com.flipkart.drift.commons.model.node.BranchNode;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.flipkart.drift.commons.model.node.WaitNode;
 import com.flipkart.drift.commons.model.node.Workflow;
@@ -12,15 +13,18 @@ import com.flipkart.drift.commons.model.waitConfig.OnEventConfig;
 import com.flipkart.drift.commons.model.waitConfig.WaitConfig;
 
 import javax.ws.rs.core.Response;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class ParallelWorkflowValidator {
+
+    private static final Pattern CONTEXT_REF = Pattern.compile("\\{\\{context\\.([a-zA-Z0-9_]+)");
 
     private ParallelWorkflowValidator() {
     }
@@ -81,6 +85,152 @@ public final class ParallelWorkflowValidator {
         detectCycle(states);
         validateStartNode(workflow, states);
         validateSinks(states);
+        validateUniqueInstanceNames(states);
+        validateSinkNotInDependsOn(states);
+        Map<String, List<String>> branchArms = buildBranchTargetGroups(states);
+        validateBranchNodes(states, branchArms);
+        validateMustacheDependsOn(states);
+    }
+
+    /** INV-3: map keys match instanceName and all instance names are unique. */
+    private static void validateUniqueInstanceNames(Map<String, WorkflowNode> states) {
+        Set<String> seen = new HashSet<>();
+        for (Map.Entry<String, WorkflowNode> entry : states.entrySet()) {
+            String key = entry.getKey();
+            WorkflowNode node = entry.getValue();
+            String instanceName = node.getInstanceName();
+            if (instanceName == null || instanceName.isBlank()) {
+                throw new ApiException(Response.Status.BAD_REQUEST,
+                        "Every node must have a non-empty instanceName; state key: " + key);
+            }
+            if (!key.equals(instanceName)) {
+                throw new ApiException(Response.Status.BAD_REQUEST,
+                        "State map key must match instanceName; key='" + key + "' instanceName='" + instanceName + "'");
+            }
+            if (!seen.add(instanceName)) {
+                throw new ApiException(Response.Status.BAD_REQUEST,
+                        "Duplicate instanceName in workflow: " + instanceName);
+            }
+        }
+    }
+
+    /** INV-6: sink nodes must not appear in any node's dependsOn. */
+    private static void validateSinkNotInDependsOn(Map<String, WorkflowNode> states) {
+        Set<String> referenced = new HashSet<>();
+        for (WorkflowNode node : states.values()) {
+            if (node.getDependsOn() != null) {
+                referenced.addAll(node.getDependsOn());
+            }
+        }
+        Set<String> sinks = new HashSet<>(states.keySet());
+        sinks.removeAll(referenced);
+
+        for (WorkflowNode node : states.values()) {
+            List<String> deps = node.getDependsOn() != null ? node.getDependsOn() : List.of();
+            for (String dep : deps) {
+                if (sinks.contains(dep)) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "Sink node '" + dep + "' must not appear in dependsOn of node: "
+                                    + node.getInstanceName());
+                }
+            }
+        }
+    }
+
+    /** INV-7: BRANCH nodes require defaultNode; each arm must dependOn the branch. */
+    private static void validateBranchNodes(Map<String, WorkflowNode> states,
+                                              Map<String, List<String>> branchArms) {
+        for (WorkflowNode node : states.values()) {
+            NodeDefinition def = node.getNodeDefinition();
+            if (def == null || def.getType() != NodeType.BRANCH) {
+                continue;
+            }
+            BranchNode branchNode = (BranchNode) def;
+            if (branchNode.getDefaultNode() == null || branchNode.getDefaultNode().isBlank()) {
+                throw new ApiException(Response.Status.BAD_REQUEST,
+                        "BRANCH node must declare defaultNode: " + node.getInstanceName());
+            }
+            List<String> arms = branchArms.getOrDefault(node.getInstanceName(), List.of());
+            for (String arm : arms) {
+                WorkflowNode armNode = states.get(arm);
+                if (armNode == null) {
+                    continue;
+                }
+                List<String> armDeps = armNode.getDependsOn() != null ? armNode.getDependsOn() : List.of();
+                if (!armDeps.contains(node.getInstanceName())) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "BRANCH arm '" + arm + "' must list branch node '" + node.getInstanceName()
+                                    + "' in dependsOn");
+                }
+            }
+        }
+    }
+
+    /** INV-12: Mustache context refs to another node's output require that node in dependsOn. */
+    private static void validateMustacheDependsOn(Map<String, WorkflowNode> states) {
+        Set<String> instanceNames = states.keySet();
+        for (WorkflowNode node : states.values()) {
+            if (node.getParameters() == null) {
+                continue;
+            }
+            Set<String> refs = new HashSet<>();
+            for (String value : node.getParameters().values()) {
+                if (value == null) {
+                    continue;
+                }
+                Matcher matcher = CONTEXT_REF.matcher(value);
+                while (matcher.find()) {
+                    refs.add(matcher.group(1));
+                }
+            }
+            Set<String> deps = new HashSet<>(
+                    node.getDependsOn() != null ? node.getDependsOn() : List.of());
+            String self = node.getInstanceName();
+            for (String ref : refs) {
+                String sourceNode = resolveSourceNodeName(ref, instanceNames);
+                if (sourceNode != null && !sourceNode.equals(self) && !deps.contains(sourceNode)) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "Node '" + self + "' references context." + ref
+                                    + " but does not list '" + sourceNode + "' in dependsOn");
+                }
+            }
+        }
+    }
+
+    private static String resolveSourceNodeName(String ref, Set<String> instanceNames) {
+        if (instanceNames.contains(ref)) {
+            return ref;
+        }
+        for (String name : instanceNames) {
+            if (ref.startsWith(name + "_")) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, List<String>> buildBranchTargetGroups(Map<String, WorkflowNode> states) {
+        Map<String, List<String>> branchArms = new HashMap<>();
+        for (WorkflowNode node : states.values()) {
+            NodeDefinition def = node.getNodeDefinition();
+            if (def == null || def.getType() != NodeType.BRANCH) {
+                continue;
+            }
+            BranchNode branchNode = (BranchNode) def;
+            List<String> targets = new ArrayList<>();
+            if (branchNode.getChoices() != null) {
+                branchNode.getChoices().forEach(choice -> {
+                    if (choice.getNextNode() != null) {
+                        targets.add(choice.getNextNode());
+                    }
+                });
+            }
+            if (branchNode.getDefaultNode() != null) {
+                targets.add(branchNode.getDefaultNode());
+            }
+            branchArms.put(node.getInstanceName(), targets);
+        }
+        return branchArms;
     }
 
     private static void collectEventTypes(WorkflowNode node, String name, Set<String> allEventTypes) {
