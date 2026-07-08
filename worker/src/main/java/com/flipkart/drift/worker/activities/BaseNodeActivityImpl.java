@@ -87,6 +87,7 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
                 activityThinRequest.getWorkflowNode(), activityThinRequest.isParallelExecution());
         activityRequest.setContext(context.getContext());
         activityRequest.setNodeDefinition(activityThinRequest.getNodeDefinition());
+        activityRequest.setInstanceName(activityThinRequest.getWorkflowNode().getInstanceName());
         // Step 2: Execute the actual logic
         ActivityResponse response = executeNode(activityRequest);
 

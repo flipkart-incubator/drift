@@ -56,6 +56,7 @@ public class WorkflowDefinitionService {
     }
 
     public Workflow addWorkflow(Workflow workflowData) {
+        enrichNodeDefinitionsForValidation(workflowData);
         workflowData.validateWFFields();
         String workflowKey = generateRowKey(workflowData.getId(), Version.SNAPSHOT);
 
@@ -327,6 +328,24 @@ public class WorkflowDefinitionService {
         } catch (IOException e) {
             throw new ApiException("Error while fetching workflow from WorkflowHB in HBase", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
+    }
+
+    private void enrichNodeDefinitionsForValidation(Workflow workflow) {
+        if (workflow.getStates() == null) {
+            return;
+        }
+        workflow.getStates().forEach((stateId, state) -> {
+            if (state.getNodeDefinition() == null && state.getResourceId() != null) {
+                try {
+                    NodeDefinition nodeDefinition = nodeDefinitionService.getNodeById(
+                            state.getResourceId(), state.getResourceVersion());
+                    state.setNodeDefinition(nodeDefinition);
+                } catch (Exception e) {
+                    log.debug("Could not enrich nodeDefinition for {} during validation: {}",
+                            state.getInstanceName(), e.getMessage());
+                }
+            }
+        });
     }
 
 

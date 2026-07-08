@@ -336,6 +336,10 @@ public class WorkflowNodeExecutor {
         }
     }
 
+    public void runPostWorkflowCompletionNodes(Workflow workflow, Map<String, String> threadContext) {
+        executePostWorkflowCompletionNodes(workflow, threadContext);
+    }
+
     private void executePostWorkflowCompletionNodes(Workflow workflow, Map<String, String> threadContext) {
         try {
             for (String nodeId : workflow.getPostWorkflowCompletionNodes()) {
