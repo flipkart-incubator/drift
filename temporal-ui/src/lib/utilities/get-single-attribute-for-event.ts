@@ -1,0 +1,296 @@
+import { isEventGroup } from '$lib/models/event-groups';
+import type { EventGroup } from '$lib/models/event-groups/event-groups';
+import type { Payloads } from '$lib/types';
+import type { WorkflowEvent } from '$lib/types/events';
+import type { Payload } from '$lib/types/events';
+import { capitalize } from '$lib/utilities/format-camel-case';
+
+import { decodePayload } from './decode-payload';
+import type { CombinedAttributes } from './format-event-attributes';
+import { getNodeNameForActivityScheduledEvent } from './get-node-name-for-event';
+import { has } from './has';
+import { isObject } from './is';
+import {
+  isActivityTaskScheduledEvent,
+  isLocalActivityMarkerEvent,
+} from './is-event-type';
+
+type SummaryAttribute = {
+  key: string;
+  value: string | Record<string, unknown> | Payloads;
+};
+
+const emptyAttribute: SummaryAttribute = { key: '', value: '' };
+
+const keysForPlainText: Readonly<Set<string>> = new Set([
+  'activityId',
+  'attempt',
+  'binaryChecksum',
+  'identity',
+  'parentInitiatedEventId',
+  'requestId',
+  'scheduledEventId',
+  'startedEventId',
+  'lastHeartbeatTime',
+  'scheduledTime',
+  'expirationTime',
+]);
+
+export const shouldDisplayAsPlainText = (key: string): boolean => {
+  return keysForPlainText.has(key);
+};
+
+const keysToOmitIfNoValue: Readonly<Set<string>> = new Set([
+  'suggestContinueAsNew',
+  'historySizeBytes',
+]);
+
+export const shouldDisplayAttribute = (
+  key: string,
+  value: unknown,
+): key is string => {
+  if (value === null) return false;
+  if (value === undefined) return false;
+  if (value === '') return false;
+  if (value === '0s') return false;
+  if (key === 'type') return false;
+  if ((!value || value === '0') && keysToOmitIfNoValue.has(key)) return false;
+
+  return true;
+};
+
+export const pendingActivityKeys = [
+  'attempt',
+  'maximumAttempts',
+  'heartbeatDetails',
+  'lastHeartbeatTime',
+  'lastFailure',
+  'lastStartedTime',
+  'scheduledTime',
+  'expirationTime',
+  'lastWorkerIdentity',
+];
+
+export const shouldDisplayPendingAttribute = (key: string): key is string => {
+  return pendingActivityKeys.includes(key);
+};
+
+export const shouldDisplayGroupAttribute = (
+  key: string,
+  value: unknown,
+): key is string => {
+  if (value === null) return false;
+  if (value === undefined) return false;
+  if (value === '') return false;
+  if (value === '0s') return false;
+  if (key === 'type') return false;
+  if (key === 'workflowId') return false;
+  if (key === 'initiatedEventId') return false;
+  if (key === 'startedEventId') return false;
+  if (key === 'scheduledEventId') return false;
+  if (key === 'activityId') return false;
+  if (key === 'namespace') return false;
+  if (key === 'namespaceId') return false;
+  if (key === 'workflowTaskCompletedEventId') return false;
+  if (key === 'taskQueueKind') return false;
+
+  if ((!value || value === '0') && keysToOmitIfNoValue.has(key)) return false;
+
+  return true;
+};
+
+export const shouldDisplayNestedAttribute = (value: unknown): boolean => {
+  if (value === null) return false;
+  if (value === undefined) return false;
+  if (value === '') return false;
+  if (Array.isArray(value) && !value.length) return false;
+
+  return true;
+};
+
+export const getCodeBlockValue: Parameters<typeof JSON.stringify>[0] = (
+  value: string | Record<string, unknown>,
+) => {
+  if (typeof value === 'string') return value;
+
+  return [value?.payloads, value?.indexedFields, value?.points, value].find(
+    (v) => v !== undefined,
+  );
+};
+
+export const getStackTrace = (value: unknown) => {
+  if (!isObject(value)) return undefined;
+  if (has(value, 'stackTrace') && value.stackTrace) return value.stackTrace;
+
+  for (const key in value) {
+    if (isObject(value[key])) {
+      return getStackTrace(value[key]);
+    }
+  }
+};
+
+const keysWithExecutionLinks = [
+  'baseRunId',
+  'continuedExecutionRunId',
+  'firstExecutionRunId',
+  'newExecutionRunId',
+  'newRunId',
+  'originalExecutionRunId',
+] as const;
+
+// For linking to same workflow but different execution
+export const shouldDisplayAsExecutionLink = (
+  key: string,
+): key is (typeof keysWithExecutionLinks)[number] => {
+  for (const workflowKey of keysWithExecutionLinks) {
+    if (key === workflowKey) return true;
+  }
+
+  return false;
+};
+
+const keysWithTaskQueueLinks = ['taskQueueName'] as const;
+
+export const shouldDisplayAsTaskQueueLink = (
+  key: string,
+): key is (typeof keysWithTaskQueueLinks)[number] => {
+  for (const taskQueueKey of keysWithTaskQueueLinks) {
+    if (key === taskQueueKey) return true;
+  }
+
+  return false;
+};
+
+const keysWithChildExecutionLinks = [
+  'workflowExecutionWorkflowId',
+  'workflowExecutionRunId',
+] as const;
+
+// For linking to a child workflow
+export const shouldDisplayChildWorkflowLink = (
+  key: string,
+  attributes: CombinedAttributes,
+): key is (typeof keysWithChildExecutionLinks)[number] => {
+  const workflowLinkAttributesExist = Boolean(
+    attributes?.workflowExecutionWorkflowId &&
+      attributes?.workflowExecutionRunId,
+  );
+  for (const workflowKey of keysWithChildExecutionLinks) {
+    if (key === workflowKey && workflowLinkAttributesExist) return true;
+  }
+
+  return false;
+};
+
+const formatSummaryValue = (key: string, value: unknown): SummaryAttribute => {
+  if (typeof value === 'object') {
+    const [firstKey] = Object.keys(value);
+    if (!firstKey) {
+      return { key, value: {} };
+    }
+    if (firstKey === 'payloads') {
+      return { key, value };
+    }
+    return { key: key + capitalize(firstKey), value: value[firstKey] };
+  } else {
+    return { key, value: value.toString() };
+  }
+};
+
+/**
+ * A list of the keys that should be shown in the summary view.
+ */
+const preferredSummaryKeys = [
+  'failure',
+  'input',
+  'activityType',
+  'parentInitiatedEventId',
+  'workflowExecution',
+  'workflowType',
+  'taskQueue',
+] as const;
+
+/**
+ * Returns that first event attribute that is eligible to be displayed.
+ */
+const getFirstDisplayAttribute = ({
+  attributes,
+}: WorkflowEvent): SummaryAttribute => {
+  for (const [key, value] of Object.entries(attributes)) {
+    if (shouldDisplayAttribute(key, value)) {
+      return formatSummaryValue(key, value);
+    }
+  }
+};
+
+const getActivityType = (payload: Payload) => {
+  if (has(payload, 'ActivityType')) return payload.ActivityType;
+  if (has(payload, 'activity_type')) return payload.activity_type;
+};
+
+const isJavaSDK = (event: WorkflowEvent): boolean => {
+  return !!event.markerRecordedEventAttributes?.details?.type?.payloads;
+};
+
+/**
+ * Iterates through the keys of an event and compares it with the list of
+ * preferred keys. If a preferred key is found, it will be returned.
+ * Otherwise, it will return the first eligible event attribute.
+ */
+export const getSummaryAttribute = (event: WorkflowEvent): SummaryAttribute => {
+  const first = getFirstDisplayAttribute(event);
+
+  if (isLocalActivityMarkerEvent(event)) {
+    const payloads = (event.markerRecordedEventAttributes?.details?.data
+      ?.payloads ||
+      event.markerRecordedEventAttributes?.details?.type?.payloads ||
+      []) as unknown as Payload[];
+    const decodedPayloads = payloads.map((p) => decodePayload(p));
+    const payload = decodedPayloads?.[0];
+    if (isJavaSDK(event) && payload) {
+      return formatSummaryValue('ActivityType', payload);
+    }
+    const activityType = getActivityType(payload);
+    if (activityType) {
+      return formatSummaryValue('ActivityType', activityType);
+    }
+  }
+
+  for (const [key, value] of Object.entries(event.attributes)) {
+    for (const preferredKey of preferredSummaryKeys) {
+      if (key === preferredKey && shouldDisplayAttribute(key, value)) {
+        if (key === 'activityType' && isActivityTaskScheduledEvent(event)) {
+          const nodeName = getNodeNameForActivityScheduledEvent(event);
+          if (nodeName) {
+            const activityTypeName =
+              typeof value === 'string'
+                ? value
+                : (value as { name?: string })?.name;
+            return { key, value: `${activityTypeName}_${nodeName}` };
+          }
+        }
+        return formatSummaryValue(key, value);
+      }
+    }
+  }
+
+  return first;
+};
+
+export const getSummaryForEventGroup = ({
+  lastEvent,
+}: EventGroup): SummaryAttribute => {
+  return getSummaryAttribute(lastEvent);
+};
+
+export const getSingleAttributeForEvent = (
+  event: WorkflowEvent | EventGroup,
+): SummaryAttribute => {
+  if (!event) return emptyAttribute;
+
+  if (isEventGroup(event)) {
+    return getSummaryForEventGroup(event);
+  }
+
+  return getSummaryAttribute(event);
+};
