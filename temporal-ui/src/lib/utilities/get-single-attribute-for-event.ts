@@ -7,7 +7,10 @@ import { capitalize } from '$lib/utilities/format-camel-case';
 
 import { decodePayload } from './decode-payload';
 import type { CombinedAttributes } from './format-event-attributes';
-import { getNodeNameForActivityScheduledEvent } from './get-node-name-for-event';
+import {
+  getNodeNameForActivityScheduledEvent,
+  getNodeNameForLocalActivityMarkerEvent,
+} from './get-node-name-for-event';
 import { has } from './has';
 import { isObject } from './is';
 import {
@@ -247,12 +250,15 @@ export const getSummaryAttribute = (event: WorkflowEvent): SummaryAttribute => {
       []) as unknown as Payload[];
     const decodedPayloads = payloads.map((p) => decodePayload(p));
     const payload = decodedPayloads?.[0];
+    const nodeName = getNodeNameForLocalActivityMarkerEvent(event);
+    const withNodeName = (value: unknown) =>
+      nodeName ? `${value}_${nodeName}` : value;
     if (isJavaSDK(event) && payload) {
-      return formatSummaryValue('ActivityType', payload);
+      return formatSummaryValue('ActivityType', withNodeName(payload));
     }
     const activityType = getActivityType(payload);
     if (activityType) {
-      return formatSummaryValue('ActivityType', activityType);
+      return formatSummaryValue('ActivityType', withNodeName(activityType));
     }
   }
 
