@@ -16,7 +16,9 @@ public class NoOpSchedulerProvider implements SchedulerProvider {
 
     @Override
     public void addSchedule(ScheduleRequest request) {
-        log.debug("NoOpSchedulerProvider: returning for time : {}, workflowId: {}", request.getScheduleTimeInMillis(), request.getWorkflowId());
+        log.debug("NoOpSchedulerProvider: schedule at {} for workflowId={} instance={} eventType={}",
+                request.getScheduleTimeInMillis(), request.getWorkflowId(),
+                request.getInstanceName(), request.getEventType());
     }
 
     @Override

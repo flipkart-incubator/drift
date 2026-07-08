@@ -1,7 +1,7 @@
 package com.flipkart.drift.commons.model.temporal;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.flipkart.drift.commons.model.enums.NodeStatus;
+import com.flipkart.drift.commons.model.enums.ExecutionType;
 import com.flipkart.drift.commons.model.enums.WaitSemantics;
 import com.flipkart.drift.sdk.model.client.IssueDetail;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
@@ -36,6 +36,9 @@ public class WorkflowState implements Serializable {
 
     /** Workflow-level execution mode set when the workflow was started; null for legacy workflows (treated as SYNC). */
     private WorkflowExecutionMode workflowExecutionMode;
+
+    /** Set at start for parallel workflows so API/clients can detect execution model. */
+    private ExecutionType executionType;
 
     // --- ON_EVENT wait tracking (serial path: global; parallel path: per-node in nodeStates) ---
 
