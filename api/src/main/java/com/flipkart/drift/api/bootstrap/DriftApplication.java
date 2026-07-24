@@ -14,7 +14,6 @@ import com.flipkart.drift.api.resources.WorkflowResource;
 import com.flipkart.drift.api.resources.NodeDefinitionResource;
 import com.flipkart.drift.api.resources.WorkflowDefinitionResource;
 import com.flipkart.drift.api.module.WorkflowClientModule;
-import com.flipkart.drift.commons.utils.MetricsRegistry;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
