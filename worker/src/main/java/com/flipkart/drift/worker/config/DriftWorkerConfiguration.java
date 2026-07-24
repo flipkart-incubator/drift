@@ -22,7 +22,7 @@ public class DriftWorkerConfiguration extends Configuration {
     private StaticCacheRefreshConfig staticCacheRefreshConfig;
     @NotNull
     private CacheMaxEntriesConfig cacheMaxEntriesConfig;
-    @NotNull
+    
     private HbaseNamespaceConfig hbaseNamespaceConfig;
     @NotNull
     private String hbasePropertiesPath;
