@@ -44,12 +44,11 @@ public class ABServiceInitializer {
                 log.info("A/B Testing provider initialized successfully: {}", 
                         abTestingProvider.getClass().getSimpleName());
             } else {
-                throw new RuntimeException("A/B Testing provider initialization failed");
+                log.error("A/B Testing provider initialization failed: AB Testing will be unavailable for this instance");
             }
             
         } catch (Exception e) {
             log.error("Failed to initialize A/B Testing provider: {}", e.getMessage(), e);
-            throw new RuntimeException("A/B Testing provider initialization failed", e);
         }
     }
     
