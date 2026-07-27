@@ -165,6 +165,11 @@ public class WorkflowClientModule extends AbstractModule {
 
     @Override
     protected void configure() {
+        // Register application-provided yak.namespace if present so commons uses configured namespaces.
+        if (driftConfiguration != null && driftConfiguration.getYak() != null) {
+            com.flipkart.drift.persistence.bootstrap.ConnectionNamespace.setConfig(driftConfiguration.getYak().getNamespace());
+        }
+
         addExceptionMappers();
         bind(Connection.class).annotatedWith(Names.named(ConnectionType.HOT.name())).toProvider(ConnectionProviderWorker.class).asEagerSingleton();
         bind(IConnectionProvider.class).to(ConnectionProvider.class).asEagerSingleton();

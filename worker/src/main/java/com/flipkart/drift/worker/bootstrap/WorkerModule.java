@@ -167,6 +167,11 @@ public class WorkerModule extends AbstractModule {
 
     @Override
     protected void configure() {
+        // If the application has provided a yak.namespace block in YAML, register it so commons can resolve namespaces.
+        if (driftWorkerConfiguration != null && driftWorkerConfiguration.getYak() != null) {
+            com.flipkart.drift.persistence.bootstrap.ConnectionNamespace.setConfig(driftWorkerConfiguration.getYak().getNamespace());
+        }
+
         bind(JedisPoolAbstract.class).toInstance(this.jedisSentinelPool);
         bind(DriftWorkerConfiguration.class).toInstance(driftWorkerConfiguration);
         bind(StringResolver.class).to(MustacheStringResolver.class);

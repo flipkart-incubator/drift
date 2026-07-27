@@ -3,6 +3,7 @@ package com.flipkart.drift.api.config;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.persistence.bootstrap.CacheMaxEntriesConfig;
 import com.flipkart.drift.persistence.bootstrap.StaticCacheRefreshConfig;
+import com.flipkart.drift.persistence.bootstrap.YakConfig;
 import io.dropwizard.Configuration;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,5 +32,8 @@ public class DriftConfiguration extends Configuration {
     private String hadoopUserName;
     @NotNull
     private String hadoopLoginUser;
+
+    // Optional YAK configuration block (maps yak.namespace.* YAML)
+    private YakConfig yak;
 }
 
