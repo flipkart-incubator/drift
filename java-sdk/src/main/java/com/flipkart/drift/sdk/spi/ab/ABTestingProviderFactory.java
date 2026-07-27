@@ -23,8 +23,8 @@ public class ABTestingProviderFactory {
                 discovered = new NoOpABTestingProvider();
                 log.info("ABTestingProviderFactory: No custom ABTestingProvider found via SPI, using NoOpABTestingProvider");
             }
-        } catch (Throwable t) {
-            log.error("ABTestingProviderFactory : Failed to discover ABTestingProvider via SPI falling back to NoOpABTestingProvider", t);
+        } catch (ServiceConfigurationError | Exception e) {
+            log.error("ABTestingProviderFactory : Failed to discover ABTestingProvider via SPI falling back to NoOpABTestingProvider", e);
             discovered = new NoOpABTestingProvider();
         }
         provider = discovered;
