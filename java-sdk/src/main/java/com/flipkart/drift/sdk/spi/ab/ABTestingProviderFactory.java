@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Iterator;
 import java.util.ServiceLoader;
+import java.util.ServiceConfigurationError;
 
 @Slf4j
 public class ABTestingProviderFactory {
