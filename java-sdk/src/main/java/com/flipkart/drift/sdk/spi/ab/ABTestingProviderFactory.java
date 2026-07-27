@@ -18,7 +18,7 @@ public class ABTestingProviderFactory {
 
             if (iterator.hasNext()) {
                 discovered = iterator.next();
-                log.info("ABTestingProviderFactory: Discovered {} via SPI (not yet initialized)", provider.getClass().getName());
+                log.info("ABTestingProviderFactory: Discovered {} via SPI (not yet initialized)", discovered.getClass().getName());
             } else {
                 discovered = new NoOpABTestingProvider();
                 log.info("ABTestingProviderFactory: No custom ABTestingProvider found via SPI, using NoOpABTestingProvider");

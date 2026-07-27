@@ -59,6 +59,7 @@ public class ABServiceInitializer {
         NoOpABTestingProvider noOpABTestingProvider = new NoOpABTestingProvider();
         noOpABTestingProvider.init();
         this.abTestingProvider = noOpABTestingProvider;
+        this.initialized = true;
     }
     
     /**
