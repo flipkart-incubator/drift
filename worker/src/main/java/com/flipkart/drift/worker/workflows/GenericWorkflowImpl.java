@@ -158,6 +158,16 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     }
 
     @Override
+    public void unsidelineWorkflow(String nodeId) {
+        if (parallelExecutionActive && parallelEngine != null) {
+            parallelEngine.unsideline(nodeId);
+        } else {
+            logger.warn("WfId: {} Unsideline signal received for node {} but workflow is not in parallel mode; ignoring",
+                    workflowState.getWorkflowId(), nodeId);
+        }
+    }
+
+    @Override
     public void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest) {
         this.workflowState.setStatus(WorkflowStatus.TERMINATED);
     }

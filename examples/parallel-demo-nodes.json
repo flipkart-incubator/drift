@@ -1,0 +1,198 @@
+{
+  "parallel-demo-a": {
+    "id": "parallel-demo-a",
+    "name": "Parallel Demo Node A",
+    "type": "HTTP",
+    "parameters": [],
+    "httpComponents": {
+      "url": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return 'http://host.docker.internal:5003/a'"
+        }
+      },
+      "headers": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return ['Content-Type': 'application/json']"
+        }
+      },
+      "queryParams": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return [:]"
+        }
+      },
+      "body": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return null"
+        }
+      },
+      "method": "GET",
+      "contentType": "application/json"
+    },
+    "transformerComponents": {
+      "transformer": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return _response ?: [:]"
+        }
+      }
+    }
+  },
+  "parallel-demo-b": {
+    "id": "parallel-demo-b",
+    "name": "Parallel Demo Node B",
+    "type": "HTTP",
+    "parameters": [],
+    "httpComponents": {
+      "url": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return 'http://host.docker.internal:5003/b'"
+        }
+      },
+      "headers": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return ['Content-Type': 'application/json']"
+        }
+      },
+      "queryParams": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return [:]"
+        }
+      },
+      "body": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return null"
+        }
+      },
+      "method": "GET",
+      "contentType": "application/json"
+    },
+    "transformerComponents": {
+      "transformer": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return _response ?: [:]"
+        }
+      }
+    }
+  },
+  "parallel-demo-c": {
+    "id": "parallel-demo-c",
+    "name": "Parallel Demo Node C",
+    "type": "HTTP",
+    "parameters": [],
+    "httpComponents": {
+      "url": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return 'http://host.docker.internal:5003/c'"
+        }
+      },
+      "headers": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return ['Content-Type': 'application/json']"
+        }
+      },
+      "queryParams": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return [:]"
+        }
+      },
+      "body": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return null"
+        }
+      },
+      "method": "GET",
+      "contentType": "application/json"
+    },
+    "transformerComponents": {
+      "transformer": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return _response ?: [:]"
+        }
+      }
+    }
+  },
+  "parallel-demo-d": {
+    "id": "parallel-demo-d",
+    "name": "Parallel Demo Node D",
+    "type": "HTTP",
+    "parameters": [],
+    "httpComponents": {
+      "url": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return 'http://host.docker.internal:5003/d'"
+        }
+      },
+      "headers": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return ['Content-Type': 'application/json']"
+        }
+      },
+      "queryParams": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return [:]"
+        }
+      },
+      "body": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return null"
+        }
+      },
+      "method": "GET",
+      "contentType": "application/json"
+    },
+    "transformerComponents": {
+      "transformer": {
+        "type": "SCRIPT",
+        "value": {
+          "type": "STRING",
+          "data": "return _response ?: [:]"
+        }
+      }
+    }
+  },
+  "demo-success": {
+    "id": "demo-success",
+    "name": "Demo Success Node",
+    "type": "SUCCESS",
+    "parameters": [],
+    "executionMode": "SYNC",
+    "comment": "Demo workflow finished"
+  }
+}
