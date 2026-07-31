@@ -159,25 +159,27 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                 FetchWorkflowActivity.class, OptionsStore.activityOptions);
         String node = workflowUtilityRequest.getNode();
 
-        String issueId = this.workflowState.getIssueDetail() != null
-                ? this.workflowState.getIssueDetail().getIssueId() : null;
-
         WorkflowNode workflowNode;
-        if (issueId != null && !issueId.trim().isEmpty()) {
-            // Backward-compatible path: resolve via issue mapping.
-            workflowNode = fetchWorkflowActivity.fetchWorkflowNode(issueId, node, tenant);
-        } else if (this.workflowState.getWorkflowDslId() != null
+        if (this.workflowState.getWorkflowDslId() != null
                 && this.workflowState.getWorkflowVersion() != null) {
-            // issueId-free path: resolve directly via the workflow DSL identity captured at start.
+            // Preferred path: resolve directly via the workflow DSL identity captured at start.
+            // Kept consistent with FetchWorkflowActivityImpl#fetchWorkflowBasedOnRequest, which
+            // also prefers params.workflowId/version over issueId.
             Workflow workflow = fetchWorkflowActivity.fetchWorkflow(
                     this.workflowState.getWorkflowDslId(),
                     this.workflowState.getWorkflowVersion(), tenant);
             workflowNode = workflow.getStates().get(node);
         } else {
-            throw ApplicationFailure.newNonRetryableFailure(
-                    "Cannot execute disconnected node: workflow has neither issueId nor workflowId/version.",
-                    "WORKFLOW_RESOLUTION_FAILED"
-            );
+            String issueId = this.workflowState.getIssueDetail() != null
+                    ? this.workflowState.getIssueDetail().getIssueId() : null;
+            if (issueId == null || issueId.trim().isEmpty()) {
+                throw ApplicationFailure.newNonRetryableFailure(
+                        "Cannot execute disconnected node: workflow has neither workflowId/version nor issueId.",
+                        "WORKFLOW_RESOLUTION_FAILED"
+                );
+            }
+            // Backward-compatible fallback: resolve via issue mapping.
+            workflowNode = fetchWorkflowActivity.fetchWorkflowNode(issueId, node, tenant);
         }
         return nodeExecutor.executeWorkflowNode(workflowUtilityRequest, workflowNode);
     }
