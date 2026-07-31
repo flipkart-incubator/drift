@@ -128,12 +128,19 @@ public class TemporalService {
                 workflow.resumeWorkflow(workflowResumeRequest);
                 return buildResponseAndReturn(workflow);
             } else {
+                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "SYNC execution mode requires Redis to be enabled. " +
+                            "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
+                }
                 redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
                     workflow.resumeWorkflow(workflowResumeRequest);
                     return null;
                 }, RESUME);
                 return buildResponseAndReturn(workflow);
             }
+        } catch (ApiException e) {
+            throw e;
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
