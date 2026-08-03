@@ -129,8 +129,9 @@ public class TemporalService {
                                                             boolean allowPurgeRetry) {
         String workflowId = workflowStartRequest.getWorkflowId();
         String tenant = RequestThreadContext.get().getTenant();
+        String clientId = RequestThreadContext.get().getClientId();
         log.info("Workflow already started for idempotent wfId={}", workflowId);
-        idempotencyMetrics.alreadyStarted(tenant);
+        idempotencyMetrics.alreadyStarted(tenant, clientId);
         try {
             GenericWorkflow existing = client.newWorkflowStub(GenericWorkflow.class, workflowId);
             WorkflowResponse response = buildResponseAndReturn(existing);
@@ -140,7 +141,7 @@ public class TemporalService {
             // History-purged edge case: the existing execution's history is gone by the time we
             // query it. Not an error the caller should see -- meter it and treat the request as
             // a fresh start (Temporal no longer has state under this workflowId to conflict with).
-            idempotencyMetrics.historyPurged(tenant);
+            idempotencyMetrics.historyPurged(tenant, clientId);
             if (!allowPurgeRetry) {
                 throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR,
                         "Workflow " + workflowId + " could not be started or resolved after history-purge retry");
