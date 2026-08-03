@@ -193,36 +193,36 @@
       "depends_on": [
         "subtask-1"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-4-1",
           "description": "IdempotencyKey value object: tenant, clientId, rawKey, workflowId (no cacheKey field - 3.4 has no cache)",
           "source": "LLD 6.2 (adapted for 3.4)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-4-2",
           "description": "extractRawKey implements missing/ambiguous/malformed/happy-path validation per LLD 6.3",
           "source": "LLD 6.3",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-4-3",
           "description": "toWorkflowId derives WF-{tenant}-{clientId}-{sha256(rawKey)}, tenant+client isolation verified",
           "source": "LLD 3.3, 6.3",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-4-4",
           "description": "IdempotencyKeyResolverTest covers all LLD 12.1 scenarios, coverage >=80%",
           "source": "LLD 12.1",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": []
