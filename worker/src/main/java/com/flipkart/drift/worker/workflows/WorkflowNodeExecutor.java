@@ -1,5 +1,6 @@
 package com.flipkart.drift.worker.workflows;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
 import com.flipkart.drift.commons.model.node.ChildNode;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
@@ -40,26 +41,45 @@ import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
 public class WorkflowNodeExecutor {
     private final Logger logger = io.temporal.workflow.Workflow.getLogger(WorkflowNodeExecutor.class);
     private final WorkflowState workflowState;
-    private final Set<NodeType> localActivityTypes = Sets.newHashSet(NodeType.INSTRUCTION, NodeType. BRANCH,
-            NodeType.GROOVY, NodeType.SUCCESS, NodeType.FAILURE);
+    private final Set<NodeType> localActivityTypes = Sets.newHashSet(NodeType.INSTRUCTION, NodeType.BRANCH,
+            NodeType.GROOVY, NodeType.SUCCESS, NodeType.FAILURE, NodeType.CHILD);
 
     public WorkflowNodeExecutor(WorkflowState workflowState) {
         this.workflowState = workflowState;
     }
 
     public ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, WorkflowStartRequest workflowStartRequest) {
-        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD) {
+        validateNodeForExecution(currentNode);
+        if (currentNode.getNodeDefinition() != null && currentNode.getNodeDefinition().getType() == NodeType.CHILD) {
             if (workflowStartRequest.getParentWorkflowId() != null) {
                 throw ApplicationFailure.newNonRetryableFailure("Child node cannot be nested inside another child workflow: " + currentNode.getInstanceName(), "INVALID_CHILD_NODE");
             }
-            invokeChild(workflowStartRequest, currentNode);
+
+            JsonNode evaluatedParams = null;
+            if (currentNode.getParameters() != null && !currentNode.getParameters().isEmpty()) {
+                ActivityResponse activityResponse = executeChildActivity(currentNode, threadContext);
+                evaluatedParams = activityResponse.getNodeResponse();
+            }
+            invokeChild(workflowStartRequest, currentNode, evaluatedParams);
             return null;
         }
         return executeNode(currentNode, threadContext, true);
     }
 
     public void executeNodeWithoutStatusUpdate(WorkflowNode currentNode, Map<String, String> threadContext) {
+        validateNodeForExecution(currentNode);
         executeNode(currentNode, threadContext, false);
+    }
+
+    private void validateNodeForExecution(WorkflowNode currentNode) {
+        if (currentNode.getNodeDefinition() != null
+                && currentNode.getNodeDefinition().getType() == NodeType.SUB_WORKFLOW) {
+            throw ApplicationFailure.newNonRetryableFailure(
+                    "SubWorkflowNode '" + currentNode.getInstanceName() +
+                            "' must not reach executor; it should have been flattened during DSL fetch.",
+                    "SUB_WORKFLOW_EXECUTION_FORBIDDEN"
+            );
+        }
     }
 
     private ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, boolean updateState) {
@@ -116,10 +136,8 @@ public class WorkflowNodeExecutor {
     public void handleNodeResponseStatus(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
         switch (this.workflowState.getStatus()) {
             case WAITING:
-                handleWaitingState(workflowId, activityThinResponse);
-                break;
             case SCHEDULER_WAITING:
-                handleSchedulerWaitingState(workflowId, activityThinResponse);
+                handleWaitingState(workflowId, activityThinResponse);
                 break;
             case FAILED:
                 handleFailedState(workflowId, activityThinResponse);
@@ -187,7 +205,7 @@ public class WorkflowNodeExecutor {
         io.temporal.workflow.Workflow.newActivityStub(ReturnControlActivity.class, OptionsStore.activityOptions).exec(workflowId);
         io.temporal.workflow.Workflow.await(() -> {
             WorkflowStatus status = this.workflowState.getStatus();
-            return !(status.equals(WorkflowStatus.WAITING) || status.equals(WorkflowStatus.TERMINATED));
+            return !(status.equals(WorkflowStatus.WAITING) || status.equals(WorkflowStatus.TERMINATED) || status.equals(WorkflowStatus.SCHEDULER_WAITING));
         });
     }
 
@@ -254,7 +272,7 @@ public class WorkflowNodeExecutor {
 
     private void updateWorkflowState(ActivityThinResponse response, WorkflowNode currentNode) {
         this.workflowState.setStatus(response.getWorkflowStatus());
-        this.workflowState.setCurrentNodeRef(generateNodeIdentifier(currentNode));
+        this.workflowState.setCurrentNodeRef(currentNode.getNodeIdentifier());
         if (Optional.ofNullable(response.getNextNode()).isPresent()) {
             currentNode.setNextNode(response.getNextNode());
         }
@@ -262,13 +280,6 @@ public class WorkflowNodeExecutor {
 
     private String getActivityType(NodeType type) {
         return type.name().toLowerCase() + "Execute";
-    }
-
-    private String generateNodeIdentifier(WorkflowNode currentNode) {
-        if (currentNode.getContextOverrideKey() != null) {
-            return currentNode.getContextOverrideKey();
-        }
-        return currentNode.getInstanceName();
     }
 
     private WorkflowUtilityResponse buildResponse(WorkflowUtilityRequest request, WorkflowUtilityStatus status, ActivityResponse response) {
@@ -280,26 +291,44 @@ public class WorkflowNodeExecutor {
                 .build();
     }
 
-    public void invokeChild(WorkflowStartRequest workflowStartRequest, WorkflowNode currentNode) {
+    private ActivityResponse executeChildActivity(WorkflowNode currentNode, Map<String, String> threadContext) {
+        ActivityStub activityStub = io.temporal.workflow.Workflow.newUntypedLocalActivityStub(OptionsStore.localActivityOptions);
+        return activityStub.execute(
+                "childExecuteWithFatResponse",
+                ActivityResponse.class,
+                ActivityThinRequest.builder()
+                        .workflowId(workflowState.getWorkflowId())
+                        .nodeDefinition(currentNode.getNodeDefinition())
+                        .workflowNode(currentNode)
+                        .threadContext(threadContext)
+                        .build()
+        );
+    }
 
+    public void invokeChild(WorkflowStartRequest workflowStartRequest, WorkflowNode currentNode, JsonNode evaluatedParams) {
         ChildNode childNode = (ChildNode) currentNode.getNodeDefinition();
-        WorkflowStartRequest childStartRequest = buildChildWorkflowStartRequest(workflowStartRequest, childNode);
+        WorkflowStartRequest childStartRequest = buildChildWorkflowStartRequest(workflowStartRequest, childNode, evaluatedParams, currentNode.getInstanceName());
         if (childNode.getExecutionMode() == ExecutionMode.ASYNC) {
             invokeChildDontWaitForResults(childStartRequest);
         } else {
-            // TODO: Implement synchronous child workflow invocation
             throw ApplicationFailure.newNonRetryableFailure("Sync mode for child workflow invocation is not yet implemented", "SYNC_MODE_NOT_IMPLEMENTED");
         }
     }
 
-    private WorkflowStartRequest buildChildWorkflowStartRequest(WorkflowStartRequest parentStartRequest, ChildNode childNode) {
+    private WorkflowStartRequest buildChildWorkflowStartRequest(WorkflowStartRequest parentStartRequest, ChildNode childNode, JsonNode evaluatedParams, String instanceName) {
         WorkflowStartRequest childStartRequest = new WorkflowStartRequest();
 
         Map<String, Object> params = new HashMap<>();
         params.put(WORKFLOW_ID, childNode.getChildWorkflowId());
         params.put(VERSION, childNode.getChildWorkflowVersion());
 
-        childStartRequest.setWorkflowId(generateChildWfId(parentStartRequest));
+        if (evaluatedParams != null && evaluatedParams.isObject()) {
+            evaluatedParams.fields().forEachRemaining(
+                    entry -> params.put(entry.getKey(), entry.getValue())
+            );
+        }
+
+        childStartRequest.setWorkflowId(generateChildWfId(parentStartRequest, instanceName));
         childStartRequest.setParams(params);
         childStartRequest.setParentWorkflowId(parentStartRequest.getWorkflowId());
         childStartRequest.setIncidentId(parentStartRequest.getIncidentId());
@@ -308,7 +337,6 @@ public class WorkflowNodeExecutor {
         childStartRequest.setThreadContext(parentStartRequest.getThreadContext());
         childStartRequest.setOrderDetails(parentStartRequest.getOrderDetails());
         return childStartRequest;
-
     }
 
     private void invokeChildDontWaitForResults(WorkflowStartRequest childStartRequest) {
