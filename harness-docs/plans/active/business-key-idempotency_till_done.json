@@ -73,12 +73,12 @@
         "api/src/main/java/com/flipkart/drift/api/filters/RequestFilter.java"
       ],
       "depends_on": [],
-      "status": "IN_PROGRESS",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "711ead7",
       "started_at": "2026-08-03T07:31:07Z",
-      "completed_at": null,
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-2-1",
@@ -120,7 +120,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "6b484de",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -196,7 +196,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "b02f4ad",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -245,7 +245,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "0337c87",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -318,7 +318,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "696957a",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -406,7 +406,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "eeeb400",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -444,7 +444,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "5c82371",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -479,7 +479,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "91bc28f",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
@@ -520,7 +520,7 @@
       "status": "STATIC_PASS",
       "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "d28ab43",
       "started_at": "2026-08-03T00:00:00Z",
       "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
