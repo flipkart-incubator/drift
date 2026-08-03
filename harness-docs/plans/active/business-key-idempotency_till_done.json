@@ -22,12 +22,12 @@
         "api/src/main/resources/config/configuration.yaml"
       ],
       "depends_on": [],
-      "status": "IN_PROGRESS",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
-      "commit_sha": null,
+      "commit_sha": "e3c152f",
       "started_at": "2026-08-03T07:31:07Z",
-      "completed_at": null,
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-1-1",
