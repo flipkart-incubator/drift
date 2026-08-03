@@ -100,6 +100,7 @@ class TemporalServiceTest {
     void idempotentRequestUsesAllowDuplicateFailedOnlyReusePolicy() {
         RequestThreadContext.get().setResolvedWorkflowId("WF-tenant1-client1-abc");
         RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
 
         GenericWorkflow workflowStub = mock(GenericWorkflow.class);
         when(mockClient.newWorkflowStub(org.mockito.ArgumentMatchers.eq(GenericWorkflow.class),
@@ -123,6 +124,7 @@ class TemporalServiceTest {
     void alreadyStartedTranslatesToExistingStateFetch() {
         RequestThreadContext.get().setResolvedWorkflowId("WF-tenant1-client1-dup");
         RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
 
         WorkflowExecution execution = WorkflowExecution.newBuilder().setWorkflowId("WF-tenant1-client1-dup").build();
         WorkflowExecutionAlreadyStarted alreadyStarted =
