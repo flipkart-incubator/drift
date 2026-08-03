@@ -441,24 +441,24 @@
         "java-sdk/src/main/java/com/flipkart/drift/sdk/model/request/WorkflowRequest.java"
       ],
       "depends_on": [],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-8-1",
           "description": "workflowId field gets Javadoc note steering callers to header mechanism; no @Deprecated annotation (avoid blast radius); no behavior change",
           "source": "LLD 5.2/10/15 (target corrected per Clarification #3)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-8-2",
           "description": "mvn -pl java-sdk -am package builds with 0 errors",
           "source": "AGENTS.md (published module)",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": []
