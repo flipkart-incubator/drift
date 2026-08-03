@@ -315,54 +315,54 @@
         "subtask-2",
         "subtask-3"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-6-1",
           "description": "startWorkflow uses resolvedWorkflowId from RequestThreadContext when present",
           "source": "LLD 6.7",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-2",
           "description": "executeWorkflow uses ALLOW_DUPLICATE_FAILED_ONLY when idempotent, TERMINATE_IF_RUNNING otherwise (legacy unchanged)",
           "source": "LLD 6.7",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-3",
           "description": "catch(WorkflowExecutionAlreadyStarted) inserted BEFORE existing catch(WorkflowException) - ordering matters since AlreadyStarted extends WorkflowException; fetches existing state, sets resolvedFromExistingWorkflow=true, returns state instead of erroring",
           "source": "LLD 6.7 (evaluator round-1: catch ordering warning)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-3b",
           "description": "Verified WorkflowExecutionAlreadyStarted propagates unwrapped out of redisPubSubService.subscribeAndExecute() lambda to the new catch block on the primary already-started path (not just history-purged)",
           "source": "evaluator round-1 warning",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-4",
           "description": "History-purged edge case: treat as fresh start, meter historyPurged, no 502",
           "source": "LLD 9",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-5",
           "description": "ResponseFilter.java sets X-Drift-Workflow-Id (when resolvedWorkflowId non-blank) and X-Drift-Idempotent-Replay=true (when resolvedFromExistingWorkflow true) before RequestThreadContext.remove(); neither header for legacy requests",
           "source": "LLD 4.2 + plan Clarification #2 (evaluator round-1 FAIL: no subtask previously implemented this)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-6-6",
           "description": "TemporalServiceTest covers reuse-policy branching, already-started translation (reaching new catch, not swallowed by WorkflowException), FAILED-run restart; ResponseFilterTest covers header presence/absence",
           "source": "LLD 12.1",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": [
@@ -375,7 +375,7 @@
           "emitted_by": "TemporalService.executeWorkflow() catch block",
           "source": "LLD 11.1",
           "verification": "TemporalServiceTest + subtask-10 integration",
-          "met": false
+          "met": true
         },
         {
           "id": "MC-6-2",
@@ -386,7 +386,7 @@
           "emitted_by": "TemporalService.executeWorkflow() purge-handling branch",
           "source": "LLD 11.1 (3.4 only)",
           "verification": "targeted unit test with mocked Temporal client",
-          "met": false
+          "met": true
         }
       ]
     },

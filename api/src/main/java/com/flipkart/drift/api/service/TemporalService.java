@@ -3,6 +3,7 @@ package com.flipkart.drift.api.service;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
+import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowTerminateRequest;
@@ -19,6 +20,7 @@ import io.temporal.client.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.ws.rs.core.Response;
 import java.time.Duration;
@@ -37,11 +39,13 @@ public class TemporalService {
     public static final String RESUME = "resume";
     private final Utility utility;
     private final DriftConfiguration driftConfiguration;
+    private final IdempotencyMetrics idempotencyMetrics;
 
     @Inject
     public TemporalService(RedisPubSubService redisPubSubService,
                            DriftConfiguration driftConfiguration,
-                           Utility utility) {
+                           Utility utility,
+                           IdempotencyMetrics idempotencyMetrics) {
         this.stubsOptions = WorkflowServiceStubsOptions
                 .newBuilder()
                 .setTarget(driftConfiguration.getTemporalFrontEnd())
@@ -51,10 +55,14 @@ public class TemporalService {
         this.client = WorkflowClient.newInstance(serviceStub);
         this.utility = utility;
         this.driftConfiguration = driftConfiguration;
+        this.idempotencyMetrics = idempotencyMetrics;
     }
 
     public WorkflowResponse startWorkflow(WorkflowStartRequest workflowStartRequest) {
-        if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().isBlank()) {
+        String resolvedWorkflowId = RequestThreadContext.get().getResolvedWorkflowId();
+        if (StringUtils.isNotBlank(resolvedWorkflowId)) {
+            workflowStartRequest.setWorkflowId(resolvedWorkflowId);
+        } else if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().isBlank()) {
             workflowStartRequest.setWorkflowId(utility.generateWorkflowId(null, false));
         }
         workflowStartRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
@@ -62,7 +70,24 @@ public class TemporalService {
     }
 
     public WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest) {
+        return executeWorkflow(workflowStartRequest, true);
+    }
+
+    /**
+     * @param allowPurgeRetry whether an already-started-but-history-purged race (LLD §9) should
+     *                        be resolved by retrying the start once as a fresh workflow. Set to
+     *                        {@code false} on the retry attempt itself to guarantee termination
+     *                        (at most one retry per request, never unbounded recursion).
+     */
+    private WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest, boolean allowPurgeRetry) {
+        // PROBE::business-key-idempotency-temporal::ENTRY
         String workflowId = workflowStartRequest.getWorkflowId();
+        boolean idempotent = StringUtils.isNotBlank(RequestThreadContext.get().getResolvedWorkflowId());
+        log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow workflowId={} idempotent={}",
+                workflowId, idempotent);
+        WorkflowIdReusePolicy reusePolicy = idempotent
+                ? WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+                : WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING;
         GenericWorkflow workflow;
         try {
             workflow = client.newWorkflowStub(
@@ -71,7 +96,7 @@ public class TemporalService {
                             .setWorkflowId(workflowId)
                             .setWorkflowExecutionTimeout(Duration.ofMinutes(1440))
                             .setTaskQueue(driftConfiguration.getTemporalTaskQueue())
-                            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING)
+                            .setWorkflowIdReusePolicy(reusePolicy)
                             .build()
             );
             redisPubSubService.subscribeAndExecute(workflowId, () -> {
@@ -79,6 +104,11 @@ public class TemporalService {
                 return null;
             }, START);
             return buildResponseAndReturn(workflow);
+        } catch (WorkflowExecutionAlreadyStarted e) {
+            // Most-specific-exception-first: WorkflowExecutionAlreadyStarted extends
+            // WorkflowException, so this catch MUST precede catch(WorkflowException) below,
+            // otherwise it is unreachable dead code.
+            return resolveAlreadyStartedWorkflow(workflowStartRequest, allowPurgeRetry);
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
@@ -87,6 +117,44 @@ public class TemporalService {
         } catch (Exception e) {
             log.error("Unexpected error during workflow start: {}", e.getMessage(), e);
             throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to start workflow: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Resolves a duplicate start signaled by Temporal via {@code WorkflowExecutionAlreadyStarted}
+     * (§3.4's primary, server-arbitrated de-dup mechanism). Fetches and returns the existing
+     * workflow's state, marking the request as an idempotent replay. Handles the narrow
+     * history-purged race (LLD §9): if the existing workflow's state can no longer be queried
+     * because Temporal namespace retention has purged its history, meters that fact and retries
+     * the start once as a fresh workflow rather than surfacing a 502.
+     */
+    private WorkflowResponse resolveAlreadyStartedWorkflow(WorkflowStartRequest workflowStartRequest,
+                                                            boolean allowPurgeRetry) {
+        String workflowId = workflowStartRequest.getWorkflowId();
+        String tenant = RequestThreadContext.get().getTenant();
+        log.info("Workflow already started for idempotent wfId={}", workflowId);
+        idempotencyMetrics.alreadyStarted(tenant);
+        // PROBE::business-key-idempotency-temporal::BRANCH
+        log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow branch=already_started workflowId={}",
+                workflowId);
+        try {
+            GenericWorkflow existing = client.newWorkflowStub(GenericWorkflow.class, workflowId);
+            WorkflowResponse response = buildResponseAndReturn(existing);
+            RequestThreadContext.get().setResolvedFromExistingWorkflow(true);
+            return response;
+        } catch (WorkflowNotFoundException | WorkflowQueryException notFound) {
+            // History-purged edge case: the existing execution's history is gone by the time we
+            // query it. Not an error the caller should see -- meter it and treat the request as
+            // a fresh start (Temporal no longer has state under this workflowId to conflict with).
+            idempotencyMetrics.historyPurged(tenant);
+            // PROBE::business-key-idempotency-temporal::BRANCH
+            log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow branch=history_purged workflowId={}",
+                    workflowId);
+            if (!allowPurgeRetry) {
+                throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR,
+                        "Workflow " + workflowId + " could not be started or resolved after history-purge retry");
+            }
+            return executeWorkflow(workflowStartRequest, false);
         }
     }
 

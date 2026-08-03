@@ -163,6 +163,13 @@ public class RedisPubSubService implements Managed {
             if (cause instanceof io.temporal.client.WorkflowNotFoundException) {
                 throw (io.temporal.client.WorkflowNotFoundException) cause;
             }
+            // Business-key idempotency (§3.4): WorkflowExecutionAlreadyStarted (and any other
+            // WorkflowException) must propagate unwrapped so TemporalService.executeWorkflow's
+            // catch blocks -- not this generic error path -- resolve the duplicate. Without this,
+            // the already-started signal is swallowed into a generic 500 by logAndMarkMeter below.
+            if (cause instanceof io.temporal.client.WorkflowException) {
+                throw (io.temporal.client.WorkflowException) cause;
+            }
             logAndMarkMeter(channelName, e);
         }
     }
