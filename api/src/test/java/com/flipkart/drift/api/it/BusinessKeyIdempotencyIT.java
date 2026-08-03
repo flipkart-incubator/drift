@@ -45,8 +45,7 @@ import static org.mockito.Mockito.when;
 /**
  * End-to-end idempotency round trip driven through the real collaborators
  * (IdempotencyKeyResolver -> IdempotencyFilter -> TemporalService -> ResponseFilter) against
- * Temporal's in-memory {@link TestWorkflowEnvironment} (Redis-free variant scenarios only;
- * a Redis-backed-cache "Redis paused mid-test" scenario is not applicable and is dropped).
+ * Temporal's in-memory {@link TestWorkflowEnvironment}.
  * <p>
  * Deviation from a literal HTTP-layer test: this repo has no jersey-test-framework/grizzly
  * dependency wired anywhere (verified across all poms), so rather than adding new test

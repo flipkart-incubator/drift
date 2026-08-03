@@ -6,12 +6,10 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 /**
- * Codahale meters for the business-key idempotency feature (Redis-free variant).
- * <p>
- * Only the meters applicable to this variant are implemented here: {@code miss},
- * {@code already_started}, {@code history_purged}. The Redis-backed-cache-only meters
- * ({@code hit}, {@code conflict.in_flight}, {@code redis.error}, {@code latency.lookup},
- * {@code latency.write}) are intentionally NOT implemented — there is no cache in this variant.
+ * Codahale meters for the business-key idempotency feature: {@code miss} (a fresh workflow
+ * start), {@code already_started} (Temporal detected a duplicate start), and
+ * {@code history_purged} (the duplicate's history was no longer queryable, so a retry
+ * was attempted).
  */
 @Singleton
 public class IdempotencyMetrics {

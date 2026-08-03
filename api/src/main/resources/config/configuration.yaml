@@ -18,7 +18,9 @@ logging:
       logFormat: "%date %level [%thread] %logger{0} [%X{id}][%X{idempotencyKey}] %msg%n"
 
 idempotencyConfig:
+  # Request header name(s) checked for a client-supplied idempotency key.
   headers: [${IDEMPOTENCY_HEADERS:-X_DRIFT_IDEMPOTENCY_KEY}]
+  # Whether requests without an idempotency key header are allowed through unchanged.
   optional: ${IDEMPOTENCY_OPTIONAL:-true}
 
 redisConfiguration:
