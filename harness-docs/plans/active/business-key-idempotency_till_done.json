@@ -2,7 +2,7 @@
   "feature_tag": "business-key-idempotency",
   "created_at": "2026-08-03T00:00:00Z",
   "plan_doc": "harness-docs/plans/active/business-key-idempotency_execution_plan.md",
-  "status": "IN_PROGRESS",
+  "status": "ALL_SUBTASKS_COMPLETE",
   "validate_verdict": "PENDING",
   "variant_decision": {
     "chosen": "3.4-redis-free",
@@ -517,54 +517,54 @@
         "subtask-6",
         "subtask-7"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-10-1",
           "description": "Two POSTs same key ~100ms apart -> same workflowId, one Temporal execution",
           "source": "LLD 12.2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-2",
           "description": "Same key, different clientIds same tenant -> two distinct workflowIds",
           "source": "LLD 12.2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-3",
           "description": "Same key, different tenants -> two distinct workflowIds",
           "source": "LLD 12.2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-4",
           "description": "POST after FAILED run under same key -> retry succeeds and re-runs",
           "source": "LLD 12.2 (3.4)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-5",
           "description": "Legacy request without header -> unchanged auto-generated id + TERMINATE_IF_RUNNING behavior",
           "source": "LLD 10",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-6",
           "description": "Uses temporal-testing TestWorkflowEnvironment, not a live cluster",
           "source": "TEST.md convention",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-10-7",
           "description": "Response headers end-to-end: first POST -> X-Drift-Workflow-Id set, no X-Drift-Idempotent-Replay; duplicate POST -> same X-Drift-Workflow-Id + X-Drift-Idempotent-Replay:true; legacy POST -> neither header",
           "source": "LLD 4.2 (evaluator round-1 verification requirement)",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": []
