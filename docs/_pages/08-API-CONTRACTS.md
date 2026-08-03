@@ -184,7 +184,7 @@ duplicate workflow execution or terminating an in-flight one.
 
 | Header | Required | Description |
 |--------|----------|-------------|
-| `X-Drift-Idempotency-Key` | No (see back-compat note below) | Caller-supplied business key, `1-256` chars, charset `[A-Za-z0-9_\-:.]`. Drift derives the Temporal `workflowId` deterministically as `sha256(tenant:clientId:rawKey)`; repeating the same key + tenant + clientId always resolves to the same workflow, never starting a second execution. |
+| `X-Drift-Idempotency-Key` | No (see back-compat note below) | Caller-supplied business key, `1-256` chars, charset `[A-Za-z0-9_\-:.]`. Drift derives the Temporal `workflowId` as `WF-{tenant}-{clientId}-{sha256(tenant NUL clientId NUL rawKey)}`; all three components are bound into the hash so different tenant/clientId splits with the same concatenated prefix never collide; repeating the same key + tenant + clientId always resolves to the same workflow, never starting a second execution. |
 | `X-Request-Id` | No | Accepted as an alias for `X-Drift-Idempotency-Key`, but only if the primary header is absent. Supplying both with **different** values is an error (see below). |
 
 Validation errors return `400 Bad Request` with one of the following `errorCode` values in

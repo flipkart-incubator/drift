@@ -77,12 +77,17 @@ public class IdempotencyKeyResolver {
 
     /**
      * Derives a deterministic Temporal workflowId from tenant + clientId + rawKey.
-     * Two different clientIds under the same tenant, or two different tenants, always produce
-     * distinct workflowIds even for an identical rawKey.
+     * All three components are bound into the SHA-256 input using a NUL-byte separator
+     * (U+0000 cannot appear in HTTP header values or the allowed rawKey charset), so the
+     * hash is unique per (tenant, clientId, rawKey) triple even when the lowercased
+     * "{tenant}-{clientId}" prefix looks identical across different splits
+     * (e.g. tenant="a", clientId="b-c" vs tenant="a-b", clientId="c").
      */
     public String toWorkflowId(String tenant, String clientId, String rawKey) {
-        return WORKFLOW_ID_PREFIX + tenant.toLowerCase() + "-" + clientId.toLowerCase()
-                + "-" + DigestUtils.sha256Hex(rawKey);
+        String t = tenant.toLowerCase();
+        String c = clientId.toLowerCase();
+        String hashInput = t + "\0" + c + "\0" + rawKey;
+        return WORKFLOW_ID_PREFIX + t + "-" + c + "-" + DigestUtils.sha256Hex(hashInput);
     }
 
     public IdempotencyKey resolve(String tenant, String clientId, String rawKey) {

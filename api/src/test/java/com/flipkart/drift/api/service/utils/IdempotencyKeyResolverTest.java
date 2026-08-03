@@ -107,6 +107,16 @@ class IdempotencyKeyResolverTest {
     }
 
     @Test
+    void ambiguousPrefixSplitsProduceDistinctWorkflowIds() {
+        // tenant="tenantA", clientId="B-C" and tenant="tenantA-B", clientId="C" both
+        // lower-case to the same "tenanta-b-c" prefix — the hash must keep them distinct.
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
+        String id1 = resolver.toWorkflowId("tenantA", "B-C", "same-key");
+        String id2 = resolver.toWorkflowId("tenantA-B", "C", "same-key");
+        assertNotEquals(id1, id2);
+    }
+
+    @Test
     void differentRawKeysNeverCollide() {
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
         String id1 = resolver.toWorkflowId("tenant1", "client1", "raw-key-a");
