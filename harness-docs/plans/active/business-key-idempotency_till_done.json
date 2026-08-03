@@ -117,30 +117,30 @@
         "api/src/main/java/com/flipkart/drift/api/service/idempotency/IdempotencyMetrics.java"
       ],
       "depends_on": [],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-3-1",
           "description": "IdempotencyMetrics constructor-injected with MetricRegistry",
           "source": "LLD 5.1",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-3-2",
           "description": "Implements miss(tenant,clientId), alreadyStarted(tenant), historyPurged(tenant) only (3.4-applicable rows)",
           "source": "LLD 11.1",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-3-3",
           "description": "Unit test asserts each method marks the correctly named Codahale meter",
           "source": "LLD 11.1",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": [
@@ -154,7 +154,7 @@
           "emitted_by": "IdempotencyMetrics.miss()",
           "source": "LLD 11.1",
           "verification": "unit test asserts meter marked with correct name",
-          "met": false
+          "met": true
         },
         {
           "id": "MC-3-2",
@@ -165,7 +165,7 @@
           "emitted_by": "IdempotencyMetrics.alreadyStarted()",
           "source": "LLD 11.1",
           "verification": "unit test + subtask-6 integration",
-          "met": false
+          "met": true
         },
         {
           "id": "MC-3-3",
@@ -176,7 +176,7 @@
           "emitted_by": "IdempotencyMetrics.historyPurged()",
           "source": "LLD 11.1 (3.4 only)",
           "verification": "unit test + subtask-6 targeted test",
-          "met": false
+          "met": true
         }
       ]
     },
