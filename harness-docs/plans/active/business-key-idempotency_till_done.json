@@ -476,30 +476,30 @@
         "subtask-5",
         "subtask-6"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-9-1",
           "description": "New request headers (X_DRIFT_IDEMPOTENCY_KEY, X_REQUEST_ID) documented with validation rules + error codes",
           "source": "LLD 4.1",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-9-2",
           "description": "New response headers documented, including repurposed X-Drift-Idempotent-Replay semantics",
           "source": "LLD 4.2 + Clarification #2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-9-3",
           "description": "Scope note: only POST /v3/workflow/start affected; back-compat documented",
           "source": "LLD 4.3, 10",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": []
