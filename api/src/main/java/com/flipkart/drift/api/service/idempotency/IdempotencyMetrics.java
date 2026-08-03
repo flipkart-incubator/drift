@@ -6,12 +6,12 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 /**
- * Codahale meters for the business-key idempotency feature (§3.4, Redis-free variant).
+ * Codahale meters for the business-key idempotency feature (Redis-free variant).
  * <p>
- * Only the §3.4-applicable rows from LLD §11.1 are implemented here: {@code miss},
- * {@code already_started}, {@code history_purged}. The §3.2 (Redis-backed)-only meters
+ * Only the meters applicable to this variant are implemented here: {@code miss},
+ * {@code already_started}, {@code history_purged}. The Redis-backed-cache-only meters
  * ({@code hit}, {@code conflict.in_flight}, {@code redis.error}, {@code latency.lookup},
- * {@code latency.write}) are intentionally NOT implemented — there is no cache under §3.4.
+ * {@code latency.write}) are intentionally NOT implemented — there is no cache in this variant.
  */
 @Singleton
 public class IdempotencyMetrics {

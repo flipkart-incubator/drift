@@ -30,7 +30,7 @@ public class ResponseFilter implements ContainerResponseFilter {
     }
 
     /**
-     * §3.4 business-key idempotency response headers (LLD §4.2 + plan Clarification #2):
+     * Business-key idempotency response headers:
      * {@code X-Drift-Workflow-Id} is set whenever the request resolved to a business-key
      * derived workflowId; {@code X-Drift-Idempotent-Replay: true} is added only when that
      * resolution hit a pre-existing Temporal execution (never {@code "false"} -- omitted

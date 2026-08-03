@@ -74,7 +74,7 @@ public class TemporalService {
     }
 
     /**
-     * @param allowPurgeRetry whether an already-started-but-history-purged race (LLD §9) should
+     * @param allowPurgeRetry whether an already-started-but-history-purged race should
      *                        be resolved by retrying the start once as a fresh workflow. Set to
      *                        {@code false} on the retry attempt itself to guarantee termination
      *                        (at most one retry per request, never unbounded recursion).
@@ -119,9 +119,9 @@ public class TemporalService {
 
     /**
      * Resolves a duplicate start signaled by Temporal via {@code WorkflowExecutionAlreadyStarted}
-     * (§3.4's primary, server-arbitrated de-dup mechanism). Fetches and returns the existing
+     * (the primary, server-arbitrated de-dup mechanism). Fetches and returns the existing
      * workflow's state, marking the request as an idempotent replay. Handles the narrow
-     * history-purged race (LLD §9): if the existing workflow's state can no longer be queried
+     * history-purged race: if the existing workflow's state can no longer be queried
      * because Temporal namespace retention has purged its history, meters that fact and retries
      * the start once as a fresh workflow rather than surfacing a 502.
      */

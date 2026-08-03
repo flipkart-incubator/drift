@@ -18,7 +18,7 @@ import io.temporal.workflow.Workflow;
  * depend on (ARCHITECTURE_RULES.md, {@code apiMustNotDependOnWorker}) -- this fake stands in
  * for it so the integration test can exercise a genuine Temporal round-trip without violating
  * that boundary. Deliberately trivial: honors an optional {@code shouldFail} param to simulate
- * a FAILED run for the retry-after-failure scenario (LLD §12.2).
+ * a FAILED run for the retry-after-failure scenario.
  */
 public class FakeGenericWorkflowImpl implements GenericWorkflow {
 

@@ -15,11 +15,11 @@ import java.util.Set;
 
 /**
  * Resolves the business-key idempotency header on {@code POST /v3/workflow/start} and
- * stashes the derived workflowId on {@link RequestThreadContext} (§3.4, Redis-free variant).
+ * stashes the derived workflowId on {@link RequestThreadContext} (Redis-free variant).
  * <p>
  * Request-filter only — there is no response-filter method here; the actual de-dup is
  * arbitrated server-side by Temporal's atomic {@code StartWorkflowExecution} inside
- * {@code TemporalService} (subtask-6). This filter performs no Redis lookup, no
+ * {@code TemporalService}. This filter performs no Redis lookup, no
  * {@code tryAcquire}, and never returns a {@code 409}.
  */
 @Provider

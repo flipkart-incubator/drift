@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
  * Resolves the business-key idempotency header on {@code POST /v3/workflow/start}
  * into a raw key and, from there, a deterministic Temporal workflowId.
  * <p>
- * §3.4 (Redis-free) scope: no cache-key derivation, only tenant+clientId+rawKey isolation
- * via a SHA-256-derived workflowId (LLD §3.3, §6.3).
+ * Redis-free scope: no cache-key derivation, only tenant+clientId+rawKey isolation
+ * via a SHA-256-derived workflowId.
  */
 @Slf4j
 @Singleton
@@ -78,7 +78,7 @@ public class IdempotencyKeyResolver {
     }
 
     /**
-     * Derives a deterministic Temporal workflowId from tenant + clientId + rawKey (LLD §3.3/§6.3).
+     * Derives a deterministic Temporal workflowId from tenant + clientId + rawKey.
      * Two different clientIds under the same tenant, or two different tenants, always produce
      * distinct workflowIds even for an identical rawKey.
      */

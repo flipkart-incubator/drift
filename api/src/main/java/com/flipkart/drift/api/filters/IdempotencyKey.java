@@ -4,9 +4,9 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * Value object for a resolved business-key idempotency request (§3.4, Redis-free variant).
- * No {@code cacheKey} field — §3.4 has no cache; the derived {@code workflowId} IS the
- * de-dup key, enforced by Temporal itself.
+ * Value object for a resolved business-key idempotency request (Redis-free variant).
+ * No {@code cacheKey} field — this variant has no cache; the derived {@code workflowId}
+ * IS the de-dup key, enforced by Temporal itself.
  */
 @Data
 @Builder
