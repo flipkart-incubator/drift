@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
  */
 class IdempotencyFilterTest {
 
-    private static final String HEADER = "X_DRIFT_IDEMPOTENCY_KEY";
+    private static final String HEADER = "X-Drift-Idempotency-Key";
 
     private IdempotencyFilter filter;
     private IdempotencyMetrics metrics;

@@ -19,7 +19,7 @@ logging:
 
 idempotencyConfig:
   # Request header name(s) checked for a client-supplied idempotency key.
-  headers: [${IDEMPOTENCY_HEADERS:-X_DRIFT_IDEMPOTENCY_KEY}]
+  headers: [${IDEMPOTENCY_HEADERS:-X-Drift-Idempotency-Key}]
   # Whether requests without an idempotency key header are allowed through unchanged.
   optional: ${IDEMPOTENCY_OPTIONAL:-true}
 

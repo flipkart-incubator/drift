@@ -15,7 +15,7 @@ public abstract class WorkflowRequest {
     private String incidentId;
     /**
      * Legacy/manual Temporal workflow identifier. Prefer letting Drift derive the
-     * workflow id automatically from the {@code X_DRIFT_IDEMPOTENCY_KEY} request header
+     * workflow id automatically from the {@code X-Drift-Idempotency-Key} request header
      * on {@code POST /v3/workflow/start} instead of setting this field directly — the
      * header-derived id gives at-most-one-execution-per-business-key semantics via
      * Temporal's atomic start, whereas a repeated explicit {@code workflowId} here

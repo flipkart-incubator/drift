@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IdempotencyKeyResolverTest {
 
-    private static final String HEADER = "X_DRIFT_IDEMPOTENCY_KEY";
+    private static final String HEADER = "X-Drift-Idempotency-Key";
 
     private IdempotencyConfig config(boolean optional, String... headers) {
         IdempotencyConfig config = new IdempotencyConfig();

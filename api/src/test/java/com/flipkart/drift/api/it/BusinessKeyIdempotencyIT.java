@@ -56,7 +56,7 @@ import static org.mockito.Mockito.when;
  */
 class BusinessKeyIdempotencyIT {
 
-    private static final String HEADER = "X_DRIFT_IDEMPOTENCY_KEY";
+    private static final String HEADER = "X-Drift-Idempotency-Key";
     private static TestWorkflowEnvironment testEnv;
     private static Worker worker;
 
