@@ -403,24 +403,24 @@
       "depends_on": [
         "subtask-5"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-7-1",
           "description": "IdempotencyFilter registered on Jersey environment in DriftApplication.run()",
           "source": "LLD 5.2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-7-2",
           "description": "WorkflowClientModule provides @Provides @Singleton IdempotencyConfig bound from driftConfiguration.getIdempotencyConfig()",
           "source": "LLD 5.2 (adapted)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-7-3",
