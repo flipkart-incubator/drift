@@ -89,7 +89,7 @@ class BusinessKeyIdempotencyIT {
 
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(idempotencyConfig);
         IdempotencyMetrics metrics = new IdempotencyMetrics(new MetricRegistry());
-        filter = new IdempotencyFilter(idempotencyConfig, resolver, metrics);
+        filter = new IdempotencyFilter(resolver, metrics);
         responseFilter = new ResponseFilter();
 
         RedisPubSubService redisPubSubService = mock(RedisPubSubService.class);

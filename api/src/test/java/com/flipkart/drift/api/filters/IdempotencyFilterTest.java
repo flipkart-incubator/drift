@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriInfo;
-import java.net.URI;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,7 +48,7 @@ class IdempotencyFilterTest {
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
         metrics = new IdempotencyMetrics(new MetricRegistry());
-        filter = new IdempotencyFilter(config, resolver, metrics);
+        filter = new IdempotencyFilter(resolver, metrics);
     }
 
     @AfterEach
@@ -116,7 +115,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER));
         config.setOptional(false);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter strictFilter = new IdempotencyFilter(config, resolver, metrics);
+        IdempotencyFilter strictFilter = new IdempotencyFilter(resolver, metrics);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");
@@ -131,7 +130,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER, "X_REQUEST_ID"));
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(config, resolver, metrics);
+        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(resolver, metrics);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");

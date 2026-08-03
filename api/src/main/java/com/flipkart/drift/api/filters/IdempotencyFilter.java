@@ -1,6 +1,5 @@
 package com.flipkart.drift.api.filters;
 
-import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.api.service.utils.IdempotencyKeyResolver;
 import com.google.inject.Inject;
@@ -27,14 +26,11 @@ public class IdempotencyFilter implements ContainerRequestFilter {
 
     private static final Set<String> APPLY_TO_PATHS = Set.of("/v3/workflow/start");
 
-    private final IdempotencyConfig idempotencyConfig;
     private final IdempotencyKeyResolver resolver;
     private final IdempotencyMetrics metrics;
 
     @Inject
-    public IdempotencyFilter(IdempotencyConfig idempotencyConfig, IdempotencyKeyResolver resolver,
-                              IdempotencyMetrics metrics) {
-        this.idempotencyConfig = idempotencyConfig;
+    public IdempotencyFilter(IdempotencyKeyResolver resolver, IdempotencyMetrics metrics) {
         this.resolver = resolver;
         this.metrics = metrics;
     }
