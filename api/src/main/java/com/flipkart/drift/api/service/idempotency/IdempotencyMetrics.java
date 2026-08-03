@@ -5,6 +5,8 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import java.util.Locale;
+
 /**
  * Codahale meters for the business-key idempotency feature: {@code miss} (a fresh workflow
  * start), {@code already_started} (Temporal detected a duplicate start), and
@@ -42,6 +44,6 @@ public class IdempotencyMetrics {
     }
 
     private Meter meter(String base, String tenant, String clientId) {
-        return metricRegistry.meter(base + "." + tenant.toLowerCase() + "." + clientId.toLowerCase());
+        return metricRegistry.meter(base + "." + tenant.toLowerCase(Locale.ROOT) + "." + clientId.toLowerCase(Locale.ROOT));
     }
 }
