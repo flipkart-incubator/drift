@@ -1,0 +1,573 @@
+{
+  "feature_tag": "business-key-idempotency",
+  "created_at": "2026-08-03T00:00:00Z",
+  "plan_doc": "harness-docs/plans/active/business-key-idempotency_execution_plan.md",
+  "status": "IN_PROGRESS",
+  "validate_verdict": "PENDING",
+  "variant_decision": {
+    "chosen": "3.4-redis-free",
+    "confirmed_by_user": false,
+    "note": "LLD section 14.1 leaves the 3.2 (Redis) vs 3.4 (Redis-free) choice open. This plan defaults to 3.4 per the LLD's own recommendation. Flagged explicitly to the user; not yet confirmed."
+  },
+  "subtasks": [
+    {
+      "id": "subtask-1",
+      "name": "idempotency-config",
+      "feature_tag": "business-key-idempotency-config",
+      "layer": 0,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/config/IdempotencyConfig.java",
+        "api/src/main/java/com/flipkart/drift/api/config/DriftConfiguration.java",
+        "api/src/main/resources/config/configuration.yaml"
+      ],
+      "depends_on": [],
+      "status": "IN_PROGRESS",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": "2026-08-03T07:31:07Z",
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-1-1",
+          "description": "IdempotencyConfig class exists with headers (default [X_DRIFT_IDEMPOTENCY_KEY]) and optional (default true) fields; no ttl/pendingTtl/replayCachedResponse fields (those are 3.2-only)",
+          "source": "LLD 5.1/6.1",
+          "met": true
+        },
+        {
+          "id": "AC-1-2",
+          "description": "DriftConfiguration.java has new @Valid @NotNull idempotencyConfig field",
+          "source": "LLD 5.2",
+          "met": true
+        },
+        {
+          "id": "AC-1-3",
+          "description": "configuration.yaml has new idempotencyConfig block with headers + optional, env-substitution style",
+          "source": "LLD 8",
+          "met": true
+        },
+        {
+          "id": "AC-1-4",
+          "description": "configuration.yaml logFormat extended with [%X{idempotencyKey}]; this subtask is sole owner of the logFormat edit (evaluator round-1 fix)",
+          "source": "LLD 11.2",
+          "met": true
+        },
+        {
+          "id": "AC-1-5",
+          "description": "mvn -pl arch-test -am test passes with 0 new violations",
+          "source": "ARCHITECTURE_RULES.md",
+          "met": true
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-2",
+      "name": "threadcontext-filter-ordering",
+      "feature_tag": "business-key-idempotency-threadctx",
+      "layer": 0,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/filters/RequestThreadContext.java",
+        "api/src/main/java/com/flipkart/drift/api/filters/RequestFilter.java"
+      ],
+      "depends_on": [],
+      "status": "IN_PROGRESS",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": "2026-08-03T07:31:07Z",
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-2-1",
+          "description": "RequestThreadContext gains resolvedWorkflowId, idempotencyKey, and resolvedFromExistingWorkflow fields, all reset in clear() (evaluator round-1: resolvedFromExistingWorkflow added here as its firm owner, consumed by subtask-6)",
+          "source": "LLD 6.8",
+          "met": true
+        },
+        {
+          "id": "AC-2-2",
+          "description": "getLegacyThreadContext() includes idempotencyKey only (not resolvedWorkflowId/resolvedFromExistingWorkflow)",
+          "source": "LLD 6.8",
+          "met": true
+        },
+        {
+          "id": "AC-2-3",
+          "description": "RequestFilter annotated @Priority(Priorities.AUTHENTICATION) so it runs before IdempotencyFilter",
+          "source": "LLD 6.6",
+          "met": true
+        },
+        {
+          "id": "AC-2-4",
+          "description": "Unit test for clear() and getLegacyThreadContext() new-field behavior",
+          "source": "TEST.md convention",
+          "met": true
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-3",
+      "name": "idempotency-metrics",
+      "feature_tag": "business-key-idempotency-metrics",
+      "layer": 0,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/service/idempotency/IdempotencyMetrics.java"
+      ],
+      "depends_on": [],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-3-1",
+          "description": "IdempotencyMetrics constructor-injected with MetricRegistry",
+          "source": "LLD 5.1",
+          "met": false
+        },
+        {
+          "id": "AC-3-2",
+          "description": "Implements miss(tenant,clientId), alreadyStarted(tenant), historyPurged(tenant) only (3.4-applicable rows)",
+          "source": "LLD 11.1",
+          "met": false
+        },
+        {
+          "id": "AC-3-3",
+          "description": "Unit test asserts each method marks the correctly named Codahale meter",
+          "source": "LLD 11.1",
+          "met": false
+        }
+      ],
+      "metrics_criteria": [
+        {
+          "id": "MC-3-1",
+          "metric_name": "drift.idempotency.miss",
+          "labels": {
+            "tenant": "string",
+            "client": "string"
+          },
+          "emitted_by": "IdempotencyMetrics.miss()",
+          "source": "LLD 11.1",
+          "verification": "unit test asserts meter marked with correct name",
+          "met": false
+        },
+        {
+          "id": "MC-3-2",
+          "metric_name": "drift.idempotency.temporal.already_started",
+          "labels": {
+            "tenant": "string"
+          },
+          "emitted_by": "IdempotencyMetrics.alreadyStarted()",
+          "source": "LLD 11.1",
+          "verification": "unit test + subtask-6 integration",
+          "met": false
+        },
+        {
+          "id": "MC-3-3",
+          "metric_name": "drift.idempotency.temporal.history_purged",
+          "labels": {
+            "tenant": "string"
+          },
+          "emitted_by": "IdempotencyMetrics.historyPurged()",
+          "source": "LLD 11.1 (3.4 only)",
+          "verification": "unit test + subtask-6 targeted test",
+          "met": false
+        }
+      ]
+    },
+    {
+      "id": "subtask-4",
+      "name": "idempotency-key-resolver",
+      "feature_tag": "business-key-idempotency-resolver",
+      "layer": 1,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/filters/IdempotencyKey.java",
+        "api/src/main/java/com/flipkart/drift/api/service/utils/IdempotencyKeyResolver.java"
+      ],
+      "depends_on": [
+        "subtask-1"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-4-1",
+          "description": "IdempotencyKey value object: tenant, clientId, rawKey, workflowId (no cacheKey field - 3.4 has no cache)",
+          "source": "LLD 6.2 (adapted for 3.4)",
+          "met": false
+        },
+        {
+          "id": "AC-4-2",
+          "description": "extractRawKey implements missing/ambiguous/malformed/happy-path validation per LLD 6.3",
+          "source": "LLD 6.3",
+          "met": false
+        },
+        {
+          "id": "AC-4-3",
+          "description": "toWorkflowId derives WF-{tenant}-{clientId}-{sha256(rawKey)}, tenant+client isolation verified",
+          "source": "LLD 3.3, 6.3",
+          "met": false
+        },
+        {
+          "id": "AC-4-4",
+          "description": "IdempotencyKeyResolverTest covers all LLD 12.1 scenarios, coverage >=80%",
+          "source": "LLD 12.1",
+          "met": false
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-5",
+      "name": "idempotency-filter",
+      "feature_tag": "business-key-idempotency-filter",
+      "layer": 2,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/filters/IdempotencyFilter.java"
+      ],
+      "depends_on": [
+        "subtask-1",
+        "subtask-2",
+        "subtask-3",
+        "subtask-4"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-5-1",
+          "description": "IdempotencyFilter implements ContainerRequestFilter only, no response filter method",
+          "source": "LLD 6.6 (3.4 note)",
+          "met": false
+        },
+        {
+          "id": "AC-5-2",
+          "description": "shouldApply restricts to /v3/workflow/start",
+          "source": "LLD 6.6",
+          "met": false
+        },
+        {
+          "id": "AC-5-3",
+          "description": "filter() resolves key+workflowId, stashes on RequestThreadContext, calls metrics.miss(), no Redis lookup/tryAcquire/409",
+          "source": "LLD 6.6 (3.4 scope)",
+          "met": false
+        },
+        {
+          "id": "AC-5-4",
+          "description": "Validation errors propagate as ApiException -> 400 via ApiExceptionMapper",
+          "source": "LLD 4.1",
+          "met": false
+        },
+        {
+          "id": "AC-5-5",
+          "description": "MDC enrichment with idempotencyKey",
+          "source": "LLD 11.2",
+          "met": false
+        },
+        {
+          "id": "AC-5-6",
+          "description": "IdempotencyFilterTest (Jersey test container) covers all LLD 12.1 scenarios for 3.4",
+          "source": "LLD 12.1",
+          "met": false
+        }
+      ],
+      "metrics_criteria": [
+        {
+          "id": "MC-5-1",
+          "metric_name": "drift.idempotency.miss",
+          "labels": {
+            "tenant": "string",
+            "client": "string"
+          },
+          "emitted_by": "IdempotencyFilter.filter() call to IdempotencyMetrics.miss()",
+          "source": "LLD 11.1",
+          "verification": "IdempotencyFilterTest asserts call",
+          "met": false
+        }
+      ]
+    },
+    {
+      "id": "subtask-6",
+      "name": "temporal-service-idempotent-start",
+      "feature_tag": "business-key-idempotency-temporal",
+      "layer": 2,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/service/TemporalService.java",
+        "api/src/main/java/com/flipkart/drift/api/filters/ResponseFilter.java"
+      ],
+      "depends_on": [
+        "subtask-2",
+        "subtask-3"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-6-1",
+          "description": "startWorkflow uses resolvedWorkflowId from RequestThreadContext when present",
+          "source": "LLD 6.7",
+          "met": false
+        },
+        {
+          "id": "AC-6-2",
+          "description": "executeWorkflow uses ALLOW_DUPLICATE_FAILED_ONLY when idempotent, TERMINATE_IF_RUNNING otherwise (legacy unchanged)",
+          "source": "LLD 6.7",
+          "met": false
+        },
+        {
+          "id": "AC-6-3",
+          "description": "catch(WorkflowExecutionAlreadyStarted) inserted BEFORE existing catch(WorkflowException) - ordering matters since AlreadyStarted extends WorkflowException; fetches existing state, sets resolvedFromExistingWorkflow=true, returns state instead of erroring",
+          "source": "LLD 6.7 (evaluator round-1: catch ordering warning)",
+          "met": false
+        },
+        {
+          "id": "AC-6-3b",
+          "description": "Verified WorkflowExecutionAlreadyStarted propagates unwrapped out of redisPubSubService.subscribeAndExecute() lambda to the new catch block on the primary already-started path (not just history-purged)",
+          "source": "evaluator round-1 warning",
+          "met": false
+        },
+        {
+          "id": "AC-6-4",
+          "description": "History-purged edge case: treat as fresh start, meter historyPurged, no 502",
+          "source": "LLD 9",
+          "met": false
+        },
+        {
+          "id": "AC-6-5",
+          "description": "ResponseFilter.java sets X-Drift-Workflow-Id (when resolvedWorkflowId non-blank) and X-Drift-Idempotent-Replay=true (when resolvedFromExistingWorkflow true) before RequestThreadContext.remove(); neither header for legacy requests",
+          "source": "LLD 4.2 + plan Clarification #2 (evaluator round-1 FAIL: no subtask previously implemented this)",
+          "met": false
+        },
+        {
+          "id": "AC-6-6",
+          "description": "TemporalServiceTest covers reuse-policy branching, already-started translation (reaching new catch, not swallowed by WorkflowException), FAILED-run restart; ResponseFilterTest covers header presence/absence",
+          "source": "LLD 12.1",
+          "met": false
+        }
+      ],
+      "metrics_criteria": [
+        {
+          "id": "MC-6-1",
+          "metric_name": "drift.idempotency.temporal.already_started",
+          "labels": {
+            "tenant": "string"
+          },
+          "emitted_by": "TemporalService.executeWorkflow() catch block",
+          "source": "LLD 11.1",
+          "verification": "TemporalServiceTest + subtask-10 integration",
+          "met": false
+        },
+        {
+          "id": "MC-6-2",
+          "metric_name": "drift.idempotency.temporal.history_purged",
+          "labels": {
+            "tenant": "string"
+          },
+          "emitted_by": "TemporalService.executeWorkflow() purge-handling branch",
+          "source": "LLD 11.1 (3.4 only)",
+          "verification": "targeted unit test with mocked Temporal client",
+          "met": false
+        }
+      ]
+    },
+    {
+      "id": "subtask-7",
+      "name": "di-wiring",
+      "feature_tag": "business-key-idempotency-wiring",
+      "layer": 3,
+      "module": "api",
+      "files": [
+        "api/src/main/java/com/flipkart/drift/api/bootstrap/DriftApplication.java",
+        "api/src/main/java/com/flipkart/drift/api/module/WorkflowClientModule.java"
+      ],
+      "depends_on": [
+        "subtask-5"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-7-1",
+          "description": "IdempotencyFilter registered on Jersey environment in DriftApplication.run()",
+          "source": "LLD 5.2",
+          "met": false
+        },
+        {
+          "id": "AC-7-2",
+          "description": "WorkflowClientModule provides @Provides @Singleton IdempotencyConfig bound from driftConfiguration.getIdempotencyConfig()",
+          "source": "LLD 5.2 (adapted)",
+          "met": false
+        },
+        {
+          "id": "AC-7-3",
+          "description": "bash harness-scripts/boot.sh brings up api with no Guice CreationException",
+          "source": "runtime gate",
+          "met": false
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-8",
+      "name": "sdk-doc-deprecation",
+      "feature_tag": "business-key-idempotency-sdk-doc",
+      "layer": 0,
+      "module": "java-sdk",
+      "files": [
+        "java-sdk/src/main/java/com/flipkart/drift/sdk/model/request/WorkflowRequest.java"
+      ],
+      "depends_on": [],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-8-1",
+          "description": "workflowId field gets Javadoc note steering callers to header mechanism; no @Deprecated annotation (avoid blast radius); no behavior change",
+          "source": "LLD 5.2/10/15 (target corrected per Clarification #3)",
+          "met": false
+        },
+        {
+          "id": "AC-8-2",
+          "description": "mvn -pl java-sdk -am package builds with 0 errors",
+          "source": "AGENTS.md (published module)",
+          "met": false
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-9",
+      "name": "docs-api-contracts",
+      "feature_tag": "business-key-idempotency-docs",
+      "layer": 3,
+      "module": "docs",
+      "files": [
+        "docs/_pages/08-API-CONTRACTS.md"
+      ],
+      "depends_on": [
+        "subtask-5",
+        "subtask-6"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-9-1",
+          "description": "New request headers (X_DRIFT_IDEMPOTENCY_KEY, X_REQUEST_ID) documented with validation rules + error codes",
+          "source": "LLD 4.1",
+          "met": false
+        },
+        {
+          "id": "AC-9-2",
+          "description": "New response headers documented, including repurposed X-Drift-Idempotent-Replay semantics",
+          "source": "LLD 4.2 + Clarification #2",
+          "met": false
+        },
+        {
+          "id": "AC-9-3",
+          "description": "Scope note: only POST /v3/workflow/start affected; back-compat documented",
+          "source": "LLD 4.3, 10",
+          "met": false
+        }
+      ],
+      "metrics_criteria": []
+    },
+    {
+      "id": "subtask-10",
+      "name": "integration-tests",
+      "feature_tag": "business-key-idempotency-it",
+      "layer": 4,
+      "module": "api",
+      "files": [
+        "api/src/test/java/com/flipkart/drift/api/it/BusinessKeyIdempotencyIT.java"
+      ],
+      "depends_on": [
+        "subtask-6",
+        "subtask-7"
+      ],
+      "status": "PENDING",
+      "static_status": "PENDING",
+      "validate_status": "PENDING",
+      "commit_sha": null,
+      "started_at": null,
+      "completed_at": null,
+      "acceptance_criteria": [
+        {
+          "id": "AC-10-1",
+          "description": "Two POSTs same key ~100ms apart -> same workflowId, one Temporal execution",
+          "source": "LLD 12.2",
+          "met": false
+        },
+        {
+          "id": "AC-10-2",
+          "description": "Same key, different clientIds same tenant -> two distinct workflowIds",
+          "source": "LLD 12.2",
+          "met": false
+        },
+        {
+          "id": "AC-10-3",
+          "description": "Same key, different tenants -> two distinct workflowIds",
+          "source": "LLD 12.2",
+          "met": false
+        },
+        {
+          "id": "AC-10-4",
+          "description": "POST after FAILED run under same key -> retry succeeds and re-runs",
+          "source": "LLD 12.2 (3.4)",
+          "met": false
+        },
+        {
+          "id": "AC-10-5",
+          "description": "Legacy request without header -> unchanged auto-generated id + TERMINATE_IF_RUNNING behavior",
+          "source": "LLD 10",
+          "met": false
+        },
+        {
+          "id": "AC-10-6",
+          "description": "Uses temporal-testing TestWorkflowEnvironment, not a live cluster",
+          "source": "TEST.md convention",
+          "met": false
+        },
+        {
+          "id": "AC-10-7",
+          "description": "Response headers end-to-end: first POST -> X-Drift-Workflow-Id set, no X-Drift-Idempotent-Replay; duplicate POST -> same X-Drift-Workflow-Id + X-Drift-Idempotent-Replay:true; legacy POST -> neither header",
+          "source": "LLD 4.2 (evaluator round-1 verification requirement)",
+          "met": false
+        }
+      ],
+      "metrics_criteria": []
+    }
+  ]
+}

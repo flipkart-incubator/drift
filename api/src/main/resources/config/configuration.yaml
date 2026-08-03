@@ -15,7 +15,11 @@ logging:
     - type: console
       threshold: ALL
       timeZone: IST
-      logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
+      logFormat: "%date %level [%thread] %logger{0} [%X{id}][%X{idempotencyKey}] %msg%n"
+
+idempotencyConfig:
+  headers: [${IDEMPOTENCY_HEADERS:-X_DRIFT_IDEMPOTENCY_KEY}]
+  optional: ${IDEMPOTENCY_OPTIONAL:-true}
 
 redisConfiguration:
   password: ${REDIS_PASSWORD}
