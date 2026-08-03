@@ -242,48 +242,48 @@
         "subtask-3",
         "subtask-4"
       ],
-      "status": "PENDING",
-      "static_status": "PENDING",
+      "status": "STATIC_PASS",
+      "static_status": "PASS",
       "validate_status": "PENDING",
       "commit_sha": null,
-      "started_at": null,
-      "completed_at": null,
+      "started_at": "2026-08-03T00:00:00Z",
+      "completed_at": "2026-08-03T00:00:00Z",
       "acceptance_criteria": [
         {
           "id": "AC-5-1",
           "description": "IdempotencyFilter implements ContainerRequestFilter only, no response filter method",
           "source": "LLD 6.6 (3.4 note)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-5-2",
           "description": "shouldApply restricts to /v3/workflow/start",
           "source": "LLD 6.6",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-5-3",
           "description": "filter() resolves key+workflowId, stashes on RequestThreadContext, calls metrics.miss(), no Redis lookup/tryAcquire/409",
           "source": "LLD 6.6 (3.4 scope)",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-5-4",
           "description": "Validation errors propagate as ApiException -> 400 via ApiExceptionMapper",
           "source": "LLD 4.1",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-5-5",
           "description": "MDC enrichment with idempotencyKey",
           "source": "LLD 11.2",
-          "met": false
+          "met": true
         },
         {
           "id": "AC-5-6",
           "description": "IdempotencyFilterTest (Jersey test container) covers all LLD 12.1 scenarios for 3.4",
           "source": "LLD 12.1",
-          "met": false
+          "met": true
         }
       ],
       "metrics_criteria": [
@@ -297,7 +297,7 @@
           "emitted_by": "IdempotencyFilter.filter() call to IdempotencyMetrics.miss()",
           "source": "LLD 11.1",
           "verification": "IdempotencyFilterTest asserts call",
-          "met": false
+          "met": true
         }
       ]
     },
