@@ -59,23 +59,17 @@ public class IdempotencyKeyResolver {
             if (idempotencyConfig.isOptional()) {
                 return Optional.empty();
             }
-            // PROBE::business-key-idempotency-resolver::ERROR
-            log.debug("feature=business-key-idempotency-resolver operation=extractRawKey error=missing");
             throw new ApiException(Response.Status.BAD_REQUEST,
                     "Idempotency key header is required but was not supplied", ERROR_MISSING);
         }
 
         if (distinctValues.size() > 1) {
-            // PROBE::business-key-idempotency-resolver::ERROR
-            log.debug("feature=business-key-idempotency-resolver operation=extractRawKey error=ambiguous");
             throw new ApiException(Response.Status.BAD_REQUEST,
                     "Multiple idempotency key headers supplied with conflicting values", ERROR_AMBIGUOUS);
         }
 
         String rawKey = distinctValues.iterator().next();
         if (!VALID_KEY_PATTERN.matcher(rawKey).matches()) {
-            // PROBE::business-key-idempotency-resolver::ERROR
-            log.debug("feature=business-key-idempotency-resolver operation=extractRawKey error=malformed");
             throw new ApiException(Response.Status.BAD_REQUEST,
                     "Idempotency key does not match required format [A-Za-z0-9_\\-:.]{1,256}", ERROR_MALFORMED);
         }

@@ -80,11 +80,8 @@ public class TemporalService {
      *                        (at most one retry per request, never unbounded recursion).
      */
     private WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest, boolean allowPurgeRetry) {
-        // PROBE::business-key-idempotency-temporal::ENTRY
         String workflowId = workflowStartRequest.getWorkflowId();
         boolean idempotent = StringUtils.isNotBlank(RequestThreadContext.get().getResolvedWorkflowId());
-        log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow workflowId={} idempotent={}",
-                workflowId, idempotent);
         WorkflowIdReusePolicy reusePolicy = idempotent
                 ? WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
                 : WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING;
@@ -134,9 +131,6 @@ public class TemporalService {
         String tenant = RequestThreadContext.get().getTenant();
         log.info("Workflow already started for idempotent wfId={}", workflowId);
         idempotencyMetrics.alreadyStarted(tenant);
-        // PROBE::business-key-idempotency-temporal::BRANCH
-        log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow branch=already_started workflowId={}",
-                workflowId);
         try {
             GenericWorkflow existing = client.newWorkflowStub(GenericWorkflow.class, workflowId);
             WorkflowResponse response = buildResponseAndReturn(existing);
@@ -147,9 +141,6 @@ public class TemporalService {
             // query it. Not an error the caller should see -- meter it and treat the request as
             // a fresh start (Temporal no longer has state under this workflowId to conflict with).
             idempotencyMetrics.historyPurged(tenant);
-            // PROBE::business-key-idempotency-temporal::BRANCH
-            log.debug("feature=business-key-idempotency-temporal operation=executeWorkflow branch=history_purged workflowId={}",
-                    workflowId);
             if (!allowPurgeRetry) {
                 throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR,
                         "Workflow " + workflowId + " could not be started or resolved after history-purge retry");

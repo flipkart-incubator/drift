@@ -42,10 +42,6 @@ public class IdempotencyFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
-        // PROBE::business-key-idempotency-filter::ENTRY
-        log.debug("feature=business-key-idempotency-filter operation=filter path={}",
-                requestContext.getUriInfo().getPath());
-
         if (!shouldApply(requestContext)) {
             return;
         }
@@ -67,10 +63,6 @@ public class IdempotencyFilter implements ContainerRequestFilter {
 
         MDC.put("idempotencyKey", rawKey);
         metrics.miss(tenant, clientId);
-
-        // PROBE::business-key-idempotency-filter::RESULT
-        log.debug("feature=business-key-idempotency-filter operation=filter resolvedWorkflowId={} tenant={} clientId={}",
-                key.getWorkflowId(), tenant, clientId);
     }
 
     private boolean shouldApply(ContainerRequestContext requestContext) {
