@@ -188,7 +188,8 @@ public class WorkflowClientModule extends AbstractModule {
     @Provides
     @Singleton
     public IdempotencyConfig getIdempotencyConfig() {
-        return this.driftConfiguration.getIdempotencyConfig();
+        IdempotencyConfig config = this.driftConfiguration.getIdempotencyConfig();
+        return config != null ? config : new IdempotencyConfig();
     }
 
     @Provides

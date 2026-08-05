@@ -1,9 +1,7 @@
 package com.flipkart.drift.api.filters;
 
-import com.codahale.metrics.MetricRegistry;
 import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.api.exception.ApiException;
-import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.api.service.utils.IdempotencyKeyResolver;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.junit.jupiter.api.AfterEach;
@@ -38,7 +36,6 @@ class IdempotencyFilterTest {
     private static final String HEADER = "X-Drift-Idempotency-Key";
 
     private IdempotencyFilter filter;
-    private IdempotencyMetrics metrics;
 
     @BeforeEach
     void setUp() {
@@ -47,8 +44,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER));
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        metrics = new IdempotencyMetrics(new MetricRegistry());
-        filter = new IdempotencyFilter(resolver, metrics);
+        filter = new IdempotencyFilter(resolver);
     }
 
     @AfterEach
@@ -115,7 +111,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER));
         config.setOptional(false);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter strictFilter = new IdempotencyFilter(resolver, metrics);
+        IdempotencyFilter strictFilter = new IdempotencyFilter(resolver);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");
@@ -130,7 +126,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER, "X_REQUEST_ID"));
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(resolver, metrics);
+        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(resolver);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");

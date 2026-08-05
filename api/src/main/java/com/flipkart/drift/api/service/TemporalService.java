@@ -100,6 +100,9 @@ public class TemporalService {
                 WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
                 return null;
             }, START);
+            if (idempotent) {
+                idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+            }
             return buildResponseAndReturn(workflow);
         } catch (WorkflowExecutionAlreadyStarted e) {
             // Most-specific-exception-first: WorkflowExecutionAlreadyStarted extends

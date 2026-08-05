@@ -18,7 +18,6 @@ public class DriftConfiguration extends Configuration {
     @NotNull
     private RedisConfiguration redisConfiguration;
     @Valid
-    @NotNull
     private IdempotencyConfig idempotencyConfig;
     @NotNull
     private ExecutorServiceConfig cacheRefreshExecutorServiceConfig;

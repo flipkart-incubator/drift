@@ -1,6 +1,5 @@
 package com.flipkart.drift.api.filters;
 
-import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.api.service.utils.IdempotencyKeyResolver;
 import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -27,12 +26,10 @@ public class IdempotencyFilter implements ContainerRequestFilter {
     private static final Set<String> APPLY_TO_PATHS = Set.of("/v3/workflow/start");
 
     private final IdempotencyKeyResolver resolver;
-    private final IdempotencyMetrics metrics;
 
     @Inject
-    public IdempotencyFilter(IdempotencyKeyResolver resolver, IdempotencyMetrics metrics) {
+    public IdempotencyFilter(IdempotencyKeyResolver resolver) {
         this.resolver = resolver;
-        this.metrics = metrics;
     }
 
     @Override
@@ -57,7 +54,6 @@ public class IdempotencyFilter implements ContainerRequestFilter {
         threadContext.setIdempotencyKey(rawKey);
 
         MDC.put("idempotencyKey", rawKey);
-        metrics.miss(tenant, clientId);
     }
 
     private boolean shouldApply(ContainerRequestContext requestContext) {
