@@ -15,11 +15,14 @@ import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.worker.temporal.OptionsStore;
+import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.CanceledFailure;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
@@ -29,6 +32,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     private final Logger logger = io.temporal.workflow.Workflow.getLogger(GenericWorkflowImpl.class);
     private final WorkflowNodeExecutor nodeExecutor;
     private WorkflowState workflowState;
+    private final Map<String, Boolean> pausedNodes = new HashMap<>();
 
     public GenericWorkflowImpl() {
         this.workflowState = new WorkflowState();
@@ -91,6 +95,11 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     }
 
     @Override
+    public void unsidelineWorkflow(String nodeId) {
+        pausedNodes.put(nodeId, true);
+    }
+
+    @Override
     public void terminateWorkflow(WorkflowTerminateRequest workflowTerminateRequest) {
         this.workflowState.setStatus(WorkflowStatus.TERMINATED);
     }
@@ -106,15 +115,78 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
             ActivityThinResponse activityThinResponse;
             try {
                 logger.info("WfId : {} Running node: {}", workflowId, currentNode.getInstanceName());
-                activityThinResponse = nodeExecutor.executeNode(currentNode, threadContext, workflowStartRequest);
+                activityThinResponse = executeNodeWithPause(currentNode, threadContext, workflowStartRequest, workflow);
             } catch (Exception e) {
-                currentNode = nodeExecutor.handleNodeExecutionError(e, workflow);
-                continue;
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    return;
+                }
+                throw e;
             }
             if (activityThinResponse != null) {
                 nodeExecutor.handleNodeResponseStatus(workflowId, activityThinResponse, workflow, threadContext);
             }
             currentNode = workflow.getStates().get(currentNode.getNextNode());
+        }
+    }
+
+    private ActivityThinResponse executeNodeWithPause(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                       WorkflowStartRequest workflowStartRequest, Workflow workflow) {
+        String nodeId = currentNode.getInstanceName();
+        while (true) {
+            try {
+                return nodeExecutor.executeNode(currentNode, threadContext, workflowStartRequest);
+            } catch (ActivityFailure af) {
+                if (af.getCause() instanceof CanceledFailure) {
+                    throw af;
+                }
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    throw ApplicationFailure.newNonRetryableFailure(
+                            "Workflow terminated while executing node: " + nodeId, "WORKFLOW_TERMINATED"
+                    );
+                }
+
+                runFallbackNode(workflow, threadContext, nodeId);
+
+                logger.info("WfId: {} Node: {} failed — pausing for unsideline signal", workflowState.getWorkflowId(), nodeId);
+                workflowState.setStatus(WorkflowStatus.FAILED);
+                workflowState.setCurrentNodeRef(nodeId);
+                workflowState.setErrorMessage("Error message: " + af.getMessage());
+
+                pausedNodes.putIfAbsent(nodeId, false);
+                io.temporal.workflow.Workflow.await(
+                        () -> Boolean.TRUE.equals(pausedNodes.get(nodeId))
+                                || workflowState.getStatus() == WorkflowStatus.TERMINATED
+                );
+
+                if (workflowState.getStatus() == WorkflowStatus.TERMINATED) {
+                    throw ApplicationFailure.newNonRetryableFailure(
+                            "Workflow terminated while paused at node: " + nodeId, "WORKFLOW_TERMINATED"
+                    );
+                }
+
+                pausedNodes.remove(nodeId);
+                workflowState.setErrorMessage(null);
+                logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeId);
+                workflowState.setStatus(WorkflowStatus.RUNNING);
+                // loop back → retry currentNode with fresh execution
+            }
+        }
+    }
+
+    private void runFallbackNode(Workflow workflow, Map<String, String> threadContext, String failedNodeId) {
+        WorkflowNode fallbackNode = workflow.getStates().get(workflow.getDefaultFailureNode());
+        if (fallbackNode == null) {
+            logger.warn("WfId: {} No defaultFailureNode configured — skipping fallback for failed node: {}",
+                    workflowState.getWorkflowId(), failedNodeId);
+            return;
+        }
+        try {
+            logger.info("WfId: {} Running fallback node: {} for failed node: {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId);
+            nodeExecutor.executeNodeWithoutStatusUpdate(fallbackNode, threadContext);
+        } catch (Exception e) {
+            logger.error("WfId: {} Fallback node: {} failed for node: {} — {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId, e.getMessage(), e);
         }
     }
 
