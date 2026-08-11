@@ -52,8 +52,9 @@ public class CacheInvalidationClient {
         if (workerInvalidationConfig == null || !workerInvalidationConfig.isEnabled()
                 || workerInvalidationConfig.getHeadlessServiceHost() == null
                 || workerInvalidationConfig.getHeadlessServiceHost().isBlank()) {
-            log.debug("Worker invalidation config not set or disabled, skipping fanout");
-            return;
+            throw new IllegalStateException(
+                "Cache invalidation is misconfigured: Redis is disabled and worker fanout is not configured. " +
+                "Enable Redis or set workerInvalidationConfig.headlessServiceHost.");
         }
         fanout(workerInvalidationConfig.getHeadlessServiceHost(),
                 workerInvalidationConfig.getAdminPort(),
@@ -71,6 +72,7 @@ public class CacheInvalidationClient {
             }
         } catch (Exception e) {
             log.error("Error during DNS fanout to workers for cache type={} key={}", cacheType, key, e);
+            throw new IllegalStateException("DNS fanout failed for cache type=" + cacheType + " key=" + key, e);
         }
     }
 
