@@ -8,6 +8,7 @@ import io.dropwizard.Configuration;
 import lombok.Getter;
 import lombok.Setter;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 @Getter
@@ -16,6 +17,8 @@ import javax.validation.constraints.NotNull;
 public class DriftConfiguration extends Configuration {
     @NotNull
     private RedisConfiguration redisConfiguration;
+    @Valid
+    private IdempotencyConfig idempotencyConfig;
     @NotNull
     private ExecutorServiceConfig cacheRefreshExecutorServiceConfig;
     @NotNull

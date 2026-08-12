@@ -2,6 +2,7 @@ package com.flipkart.drift.api.module;
 
 import com.codahale.metrics.MetricRegistry;
 import com.flipkart.drift.api.config.DriftConfiguration;
+import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.IConnectionProvider;
 import com.flipkart.drift.api.exception.JerseyViolationInformativeExceptionMapper;
@@ -31,6 +32,7 @@ public class WorkflowClientModule extends AbstractModule {
     private final JedisSentinelPool jedisSentinelPool;
     private final Environment environment;
     private final DriftConfiguration driftConfiguration;
+    private final MetricRegistry metricRegistry;
 
 
     public WorkflowClientModule(DriftConfiguration driftConfiguration, Environment environment, MetricRegistry metricRegistry) {
@@ -38,6 +40,7 @@ public class WorkflowClientModule extends AbstractModule {
         this.environment = environment;
         this.driftConfiguration = driftConfiguration;
         this.jedisSentinelPool = provideJedisPool();
+        this.metricRegistry = metricRegistry;
     }
 
     private JedisSentinelPool provideJedisPool() {
@@ -180,6 +183,19 @@ public class WorkflowClientModule extends AbstractModule {
     @Singleton
     public DriftConfiguration getDriftConfiguration() {
         return this.driftConfiguration;
+    }
+
+    @Provides
+    @Singleton
+    public IdempotencyConfig getIdempotencyConfig() {
+        IdempotencyConfig config = this.driftConfiguration.getIdempotencyConfig();
+        return config != null ? config : new IdempotencyConfig();
+    }
+
+    @Provides
+    @Singleton
+    public MetricRegistry getMetricRegistry() {
+        return this.metricRegistry;
     }
 
 }

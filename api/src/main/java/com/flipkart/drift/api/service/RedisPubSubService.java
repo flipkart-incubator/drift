@@ -119,8 +119,15 @@ public class RedisPubSubService implements Managed {
                 try (Timer.Context ignored = timerContext(this.getClass(), action, "latency")) {
                     onSubscribeAction.call();
                 } catch (Exception e) {
-                    markMeter(this.getClass(), "onSubscribeAction", "exception");
-                    log.error("Exception during onSubscribe action for channel: {}", channel, e);
+                    if (e instanceof io.temporal.client.WorkflowException) {
+                        // WorkflowException (incl. WorkflowExecutionAlreadyStarted) is a routine
+                        // signal on idempotent duplicate starts — propagate without ERROR noise or
+                        // generic exception-meter increment; TemporalService resolves it upstream.
+                        log.debug("WorkflowException in onSubscribe for channel: {} — {}", channel, e.getMessage());
+                    } else {
+                        markMeter(this.getClass(), "onSubscribeAction", "exception");
+                        log.error("Exception during onSubscribe action for channel: {}", channel, e);
+                    }
                     safeUnsubscribe(this, "onSubscribeAction error", channel);
                     redisFuture.completeExceptionally(e);
                 }
@@ -162,6 +169,13 @@ public class RedisPubSubService implements Managed {
             Throwable cause = e.getCause();
             if (cause instanceof io.temporal.client.WorkflowNotFoundException) {
                 throw (io.temporal.client.WorkflowNotFoundException) cause;
+            }
+            // Business-key idempotency: WorkflowExecutionAlreadyStarted (and any other
+            // WorkflowException) must propagate unwrapped so TemporalService.executeWorkflow's
+            // catch blocks -- not this generic error path -- resolve the duplicate. Without this,
+            // the already-started signal is swallowed into a generic 500 by logAndMarkMeter below.
+            if (cause instanceof io.temporal.client.WorkflowException) {
+                throw (io.temporal.client.WorkflowException) cause;
             }
             logAndMarkMeter(channelName, e);
         }

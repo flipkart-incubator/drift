@@ -15,7 +15,13 @@ logging:
     - type: console
       threshold: ALL
       timeZone: IST
-      logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
+      logFormat: "%date %level [%thread] %logger{0} [%X{id}][%X{idempotencyKey}] %msg%n"
+
+idempotencyConfig:
+  # Request header name(s) checked for a client-supplied idempotency key.
+  headers: [${IDEMPOTENCY_HEADERS:-X-Drift-Idempotency-Key}]
+  # Whether requests without an idempotency key header are allowed through unchanged.
+  optional: ${IDEMPOTENCY_OPTIONAL:-true}
 
 redisConfiguration:
   password: ${REDIS_PASSWORD}
