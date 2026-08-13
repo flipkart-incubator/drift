@@ -1,6 +1,7 @@
 package com.flipkart.drift.api.service.builder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flipkart.drift.api.client.CacheInvalidationClient;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.NodeDefinitionDao;
 import com.flipkart.drift.persistence.entity.NodeHB;
@@ -8,26 +9,22 @@ import com.flipkart.drift.commons.exception.ApiException;
 import com.flipkart.drift.commons.model.enums.Version;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.google.inject.Inject;
-import redis.clients.jedis.JedisSentinelPool;
 
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 
 import static com.flipkart.drift.commons.utils.Utility.*;
 
-import static com.flipkart.drift.api.service.utils.Utility.publishRedisEvent;
-import static com.flipkart.drift.commons.utils.Constants.Workflow.DSL_UPDATE_CHANNEL;
-
 public class NodeDefinitionService {
     public static final String NODE_EVENT_ID = "NODE";
     private final NodeDefinitionDao nodeDefinitionDao;
-    private final JedisSentinelPool jedisSentinelPool;
+    private final CacheInvalidationClient cacheInvalidationClient;
 
     @Inject
     public NodeDefinitionService(NodeDefinitionDao nodeDefinitionDao, ObjectMapper objectMapper,
-                                 JedisSentinelPool jedisSentinelPool) {
+                                 CacheInvalidationClient cacheInvalidationClient) {
         this.nodeDefinitionDao = nodeDefinitionDao;
-        this.jedisSentinelPool = jedisSentinelPool;
+        this.cacheInvalidationClient = cacheInvalidationClient;
     }
 
     public NodeDefinition addNode(NodeDefinition wfNodeData) {
@@ -81,8 +78,8 @@ public class NodeDefinitionService {
                 String versionKey = generateRowKey(id, version);
                 createNode(versionKey, nodeDefinition); // ABC_1
 
-                publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, NODE_EVENT_ID + " " + versionKey);
-                publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, NODE_EVENT_ID + " " + latestKey);
+                cacheInvalidationClient.invalidate(NODE_EVENT_ID, versionKey);
+                cacheInvalidationClient.invalidate(NODE_EVENT_ID, latestKey);
 
                 return;
             }
@@ -95,8 +92,8 @@ public class NodeDefinitionService {
             createNode(versionKey, nodeDefinition); //ABC_2, ABC_3
 
             updateNodeInHBase(generateRowKey(id, Version.LATEST), nodeDefinition);//Update of latest
-            publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, NODE_EVENT_ID + " " + versionKey);
-            publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, NODE_EVENT_ID + " " + latestKey);
+            cacheInvalidationClient.invalidate(NODE_EVENT_ID, versionKey);
+            cacheInvalidationClient.invalidate(NODE_EVENT_ID, latestKey);
 
 
         } catch (Exception e) {

@@ -4,6 +4,7 @@ import com.codahale.metrics.annotation.Timed;
 import com.flipkart.drift.worker.activities.FetchWorkflowActivity;
 import com.flipkart.drift.worker.activities.WorkflowContextManagerActivity;
 import com.flipkart.drift.worker.model.activity.ActivityThinResponse;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowTerminateRequest;
@@ -134,6 +135,11 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                 this.workflowState.setWorkflowVersion(dslVersion.toString());
             }
         }
+        this.workflowState.setWorkflowExecutionMode(
+                workflowStartRequest.getWorkflowExecutionMode() != null
+                        ? workflowStartRequest.getWorkflowExecutionMode()
+                        : WorkflowExecutionMode.SYNC
+        );
         io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
                 .persistWorkflowState(workflowStartRequest, io.temporal.workflow.Workflow.getInfo().getWorkflowId());
     }

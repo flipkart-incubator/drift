@@ -15,6 +15,7 @@ import com.flipkart.drift.worker.model.activity.ActivityRequest;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;
 import com.flipkart.drift.worker.service.WorkflowContextHBService;
 import com.flipkart.drift.commons.utils.ObjectMapperUtil;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import io.temporal.activity.Activity;
 import lombok.extern.slf4j.Slf4j;
 
@@ -81,6 +82,17 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
         activityRequest.setNodeDefinition(activityThinRequest.getNodeDefinition());
         // Step 2: Execute the actual logic
         ActivityResponse response = executeNode(activityRequest);
+
+        // Step 2b: If node is marked as terminal (end=true) and the node's own status is still
+        // transitional (RUNNING or WAITING), override to COMPLETED so all node types correctly
+        // terminate the workflow. FAILED, COMPLETED, and ASYNC_COMPLETE are intentional and preserved.
+        if (Boolean.TRUE.equals(activityRequest.getIsTerminal())
+                && response.getWorkflowStatus() != WorkflowStatus.FAILED
+                && response.getWorkflowStatus() != WorkflowStatus.COMPLETED
+                && response.getWorkflowStatus() != WorkflowStatus.ASYNC_COMPLETE) {
+            response.setWorkflowStatus(WorkflowStatus.COMPLETED);
+        }
+
         // Step 3: Persist updated context
         workflowContextHBService.updateEntity(WorkflowContext.builder()
                 .workflowId(workflowId)

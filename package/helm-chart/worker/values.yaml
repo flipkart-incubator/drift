@@ -31,6 +31,7 @@ env:
   REDIS_MASTER: "your-redis-master"
   REDIS_SENTINELS: "your-redis-sentinel:26379"
   REDIS_PREFIX: "drift"
+  REDIS_DATABASE: "0"
   ENUM_STORE_BUCKET: "file:////usr/share/drift-worker/config/lookup.properties"
   HBASE_CONFIG_BUCKET: "file:////usr/share/drift-worker/config/hbase.properties"
   AB_CONFIG_BUCKET: "file:////usr/share/drift-worker/config/ab.properties"
@@ -55,6 +56,13 @@ jvm:
     xms: "1g"
     xmx: "1g"
 
+# Headless K8s service so the API can resolve all worker pod IPs for DNS-fanout
+# cache invalidation when Redis is unavailable.
+# DNS name from API pods: <release-name>-headless.<namespace>.svc.cluster.local
+headlessService:
+  enabled: true
+  adminPort: 5601
+
 # Config files - each config is in its own section for easy management
 # These are clean, human-readable configuration files
 configFiles:
@@ -74,6 +82,7 @@ configFiles:
       master: ${REDIS_MASTER}
       sentinels: ${REDIS_SENTINELS}
       prefix: ${REDIS_PREFIX}
+      database: ${REDIS_DATABASE:-0}
       maxTotal: 50
       maxWaitMillis: 100
       maxIdle: 25

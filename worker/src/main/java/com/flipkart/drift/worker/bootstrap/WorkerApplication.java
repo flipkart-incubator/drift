@@ -1,6 +1,8 @@
 package com.flipkart.drift.worker.bootstrap;
 
 import com.flipkart.drift.persistence.bootstrap.DriftEntityModule;
+import com.flipkart.drift.persistence.dao.ConnectionType;
+import com.flipkart.drift.worker.task.CacheInvalidationTask;
 import com.flipkart.drift.worker.util.AuthNTokenGenerator;
 import com.flipkart.drift.worker.config.DriftWorkerConfiguration;
 import com.flipkart.drift.worker.resources.DriftWorkerResource;
@@ -22,10 +24,13 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public class WorkerApplication extends Application<DriftWorkerConfiguration> {
@@ -46,6 +51,7 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
 
     @Override
     public void run(DriftWorkerConfiguration driftWorkerConfiguration, Environment environment) {
+        ConnectionType.init(driftWorkerConfiguration.getHbaseNamespaceConfig());
         Scope metricsScope = setupMetrics(driftWorkerConfiguration.getPrometheusConfig());
         ConcurrentCompositeConfiguration compositeConfiguration = getConcurrentCompositeConfiguration(driftWorkerConfiguration);
         DynamicPropertyFactory.initWithConfigurationSource(compositeConfiguration);
@@ -93,18 +99,27 @@ public class WorkerApplication extends Application<DriftWorkerConfiguration> {
         environment.lifecycle().manage(new TemporalWorkerManaged(injector, driftWorkerConfiguration, metricsScope));
         environment.lifecycle().manage(injector.getInstance(RedisCacheInvalidator.class));
         environment.jersey().register(injector.getInstance(DriftWorkerResource.class));
+        environment.admin().addTask(injector.getInstance(CacheInvalidationTask.class));
     }
 
     private static ConcurrentCompositeConfiguration getConcurrentCompositeConfiguration(DriftWorkerConfiguration configuration) {
+        List<String> propertiesPath = new ArrayList<>(List.of(
+                configuration.getHbasePropertiesPath(),
+                configuration.getLookupPropertiesPath(),
+                configuration.getAuthPropertiesPath(),
+                configuration.getWorkflowPropertiesPath()
+        ));
+
+        String abPropertiesPath = configuration.getAbPropertiesPath();
+        if(StringUtils.isNotBlank(abPropertiesPath)){
+            propertiesPath.add(abPropertiesPath);
+        }
+
         DynamicURLConfiguration dynamicConfiguration = new DynamicURLConfiguration(
                 50000,
                 20000,
                 false,
-                configuration.getHbasePropertiesPath(),
-                configuration.getLookupPropertiesPath(),
-                configuration.getAuthPropertiesPath(),
-                configuration.getAbPropertiesPath(),
-                configuration.getWorkflowPropertiesPath()
+                propertiesPath.toArray(new String[0])
         );
         ConcurrentCompositeConfiguration compositeConfiguration =
                 new ConcurrentCompositeConfiguration();

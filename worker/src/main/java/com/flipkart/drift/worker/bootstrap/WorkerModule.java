@@ -32,6 +32,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 import redis.clients.jedis.JedisPoolAbstract;
 import redis.clients.jedis.JedisSentinelPool;
+import redis.clients.jedis.Protocol;
 
 import javax.ws.rs.core.Response;
 import java.util.*;
@@ -51,15 +52,20 @@ public class WorkerModule extends AbstractModule {
     }
 
     private JedisSentinelPool provideJedisPool() {
+        final RedisConfiguration redisConfiguration = driftWorkerConfiguration.getRedisConfiguration();
+        if (!redisConfiguration.isRedisEnabled()) {
+            log.info("Redis is disabled (redisEnabled=false), skipping JedisSentinelPool creation");
+            return null;
+        }
         try {
-            final RedisConfiguration redisConfiguration = driftWorkerConfiguration.getRedisConfiguration();
             String hosts = redisConfiguration.getSentinels();
             StringTokenizer strTkn = new StringTokenizer(hosts, ",");
             List<String> hostList = new ArrayList<>();
             while (strTkn.hasMoreTokens()) hostList.add(strTkn.nextToken());
             Set<String> sentinels = new HashSet<>(hostList);
             GenericObjectPoolConfig<?> genericObjectPoolConfig = getGenericObjectPoolConfig(redisConfiguration);
-            return new JedisSentinelPool(redisConfiguration.getMaster(), sentinels, genericObjectPoolConfig, redisConfiguration.getPassword());
+            return new JedisSentinelPool(redisConfiguration.getMaster(), sentinels, genericObjectPoolConfig,
+                    Protocol.DEFAULT_TIMEOUT, redisConfiguration.getPassword(), redisConfiguration.getDatabase());
         } catch (Exception e) {
             log.error("Failed to Connected to RedisDao Server " + e.getMessage(), e);
             throw new RedisStoreException(Response.Status.INTERNAL_SERVER_ERROR, "Unable to init redis config", e.getMessage());
@@ -165,7 +171,11 @@ public class WorkerModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(JedisPoolAbstract.class).toInstance(this.jedisSentinelPool);
+        if (this.jedisSentinelPool != null) {
+            bind(JedisPoolAbstract.class).toInstance(this.jedisSentinelPool);
+        }
+        // When jedisSentinelPool is null (Redis disabled), JedisPoolAbstract is unbound.
+        // Classes using @Inject(optional=true) field injection will receive null gracefully.
         bind(DriftWorkerConfiguration.class).toInstance(driftWorkerConfiguration);
         bind(StringResolver.class).to(MustacheStringResolver.class);
         bind(Connection.class).annotatedWith(Names.named(ConnectionType.HOT.name())).toProvider(ConnectionProviderWorker.class).asEagerSingleton();
