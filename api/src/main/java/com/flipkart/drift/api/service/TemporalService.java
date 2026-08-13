@@ -1,6 +1,7 @@
 package com.flipkart.drift.api.service;
 
 import com.flipkart.drift.api.config.DriftConfiguration;
+import com.flipkart.drift.api.config.RedisConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
@@ -114,7 +115,8 @@ public class TemporalService {
                         .build();
             } else {
                 // SYNC mode: block until workflow reaches a terminal state via Redis
-                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                RedisConfiguration redisConfiguration = driftConfiguration.getRedisConfiguration();
+                if (redisConfiguration == null || !redisConfiguration.isRedisEnabled()) {
                     throw new ApiException(Response.Status.BAD_REQUEST,
                             "SYNC execution mode requires Redis to be enabled. " +
                             "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
@@ -194,7 +196,8 @@ public class TemporalService {
                 workflow.resumeWorkflow(workflowResumeRequest);
                 return buildResponseAndReturn(workflow);
             } else {
-                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                RedisConfiguration redisConfiguration = driftConfiguration.getRedisConfiguration();
+                if (redisConfiguration == null || !redisConfiguration.isRedisEnabled()) {
                     throw new ApiException(Response.Status.BAD_REQUEST,
                             "SYNC execution mode requires Redis to be enabled. " +
                             "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
