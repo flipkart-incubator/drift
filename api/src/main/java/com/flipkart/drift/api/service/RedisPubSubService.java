@@ -5,6 +5,7 @@ import com.codahale.metrics.Timer;
 import com.flipkart.drift.api.exception.ApiException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import javax.annotation.Nullable;
 import io.dropwizard.lifecycle.Managed;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class RedisPubSubService implements Managed {
     private final ExecutorService redisThreadPool;
 
     @Inject
-    public RedisPubSubService(JedisSentinelPool jedisSentinelPool) {
+    public RedisPubSubService(@Nullable JedisSentinelPool jedisSentinelPool) {
         this.jedisSentinelPool = jedisSentinelPool;
         this.redisThreadPool = new ThreadPoolExecutor(
                 10, 50,
@@ -39,6 +40,10 @@ public class RedisPubSubService implements Managed {
     }
 
     private void publishGaugeMetrics() {
+        if (jedisSentinelPool == null) {
+            log.info("Redis pool is null (Redis disabled), skipping Jedis gauge registration");
+            return;
+        }
         // Monitor jedis pool metrics
         registerGauge(
                 this.getClass(),

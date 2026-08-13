@@ -3,6 +3,7 @@ package com.flipkart.drift.api.service;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
@@ -11,6 +12,7 @@ import com.flipkart.drift.sdk.model.request.WorkflowUtilityRequest;
 import com.flipkart.drift.sdk.model.response.View;
 import com.flipkart.drift.sdk.model.response.WorkflowResponse;
 import com.flipkart.drift.sdk.model.response.WorkflowUtilityResponse;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
 import com.flipkart.drift.api.service.utils.Utility;
 import com.flipkart.drift.workflows.GenericWorkflow;
@@ -85,6 +87,10 @@ public class TemporalService {
         WorkflowIdReusePolicy reusePolicy = idempotent
                 ? WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
                 : WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING;
+        WorkflowExecutionMode executionMode = workflowStartRequest.getWorkflowExecutionMode() != null
+                ? workflowStartRequest.getWorkflowExecutionMode()
+                : WorkflowExecutionMode.SYNC;
+
         GenericWorkflow workflow;
         try {
             workflow = client.newWorkflowStub(
@@ -96,19 +102,39 @@ public class TemporalService {
                             .setWorkflowIdReusePolicy(reusePolicy)
                             .build()
             );
-            redisPubSubService.subscribeAndExecute(workflowId, () -> {
+
+            if (executionMode == WorkflowExecutionMode.ASYNC) {
                 WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
-                return null;
-            }, START);
-            if (idempotent) {
-                idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+                if (idempotent) {
+                    idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+                }
+                return WorkflowResponse.builder()
+                        .workflowId(workflowId)
+                        .workflowStatus(WorkflowStatus.RUNNING)
+                        .build();
+            } else {
+                // SYNC mode: block until workflow reaches a terminal state via Redis
+                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "SYNC execution mode requires Redis to be enabled. " +
+                            "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
+                }
+                redisPubSubService.subscribeAndExecute(workflowId, () -> {
+                    WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
+                    return null;
+                }, START);
+                if (idempotent) {
+                    idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+                }
+                return buildResponseAndReturn(workflow);
             }
-            return buildResponseAndReturn(workflow);
         } catch (WorkflowExecutionAlreadyStarted e) {
             // Most-specific-exception-first: WorkflowExecutionAlreadyStarted extends
             // WorkflowException, so this catch MUST precede catch(WorkflowException) below,
             // otherwise it is unreachable dead code.
             return resolveAlreadyStartedWorkflow(workflowStartRequest, allowPurgeRetry);
+        } catch (ApiException e) {
+            throw e;
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
@@ -157,11 +183,30 @@ public class TemporalService {
         try {
             workflowResumeRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowResumeRequest.getWorkflowId());
-            redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
+
+            // Determine execution mode from the running workflow's persisted state
+            WorkflowState currentState = workflow.getWorkflowState();
+            WorkflowExecutionMode executionMode = currentState.getWorkflowExecutionMode() != null
+                    ? currentState.getWorkflowExecutionMode()
+                    : WorkflowExecutionMode.SYNC;
+
+            if (executionMode == WorkflowExecutionMode.ASYNC) {
                 workflow.resumeWorkflow(workflowResumeRequest);
-                return null;
-            }, RESUME);
-            return buildResponseAndReturn(workflow);
+                return buildResponseAndReturn(workflow);
+            } else {
+                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "SYNC execution mode requires Redis to be enabled. " +
+                            "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
+                }
+                redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
+                    workflow.resumeWorkflow(workflowResumeRequest);
+                    return null;
+                }, RESUME);
+                return buildResponseAndReturn(workflow);
+            }
+        } catch (ApiException e) {
+            throw e;
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
@@ -224,7 +269,3 @@ public class TemporalService {
                 .build();
     }
 }
-
-
-
-

@@ -37,5 +37,8 @@ public class DriftConfiguration extends Configuration {
     private String hadoopUserName;
     @NotNull
     private String hadoopLoginUser;
+
+    /** Config for DNS-fanout cache invalidation to worker pods (used when redisEnabled=false). */
+    private WorkerInvalidationConfig workerInvalidationConfig;
 }
 
