@@ -15,7 +15,13 @@ logging:
     - type: console
       threshold: ALL
       timeZone: IST
-      logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
+      logFormat: "%date %level [%thread] %logger{0} [%X{id}][%X{idempotencyKey}] %msg%n"
+
+idempotencyConfig:
+  # Request header name(s) checked for a client-supplied idempotency key.
+  headers: [${IDEMPOTENCY_HEADERS:-X-Drift-Idempotency-Key}]
+  # Whether requests without an idempotency key header are allowed through unchanged.
+  optional: ${IDEMPOTENCY_OPTIONAL:-true}
 
 redisConfiguration:
   password: ${REDIS_PASSWORD}
@@ -29,6 +35,7 @@ redisConfiguration:
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
+  redisEnabled: ${REDIS_ENABLED:true}  # override via env var; defaults to true for backward compatibility
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
@@ -48,7 +55,7 @@ hbaseNamespaceConfig:
   cold: ${HBASE_NAMESPACE_COLD:-ims_cold}
   archival: ${HBASE_NAMESPACE_ARCHIVAL:-ims_archive}
   audit: ${HBASE_NAMESPACE_AUDIT:-ims_audit}
-  
+
 hbasePropertiesPath: ${HBASE_CONFIG_BUCKET}
 
 temporalFrontEnd: ${TEMPORAL_FRONTEND}
@@ -58,3 +65,12 @@ temporalTaskQueue: ${TEMPORAL_TASK_QUEUE}
 hadoopUserName: ${HADOOP_USERNAME}
 
 hadoopLoginUser: ${HADOOP_LOGIN_USER}
+
+# DNS-fanout cache invalidation (used when redisEnabled=false).
+# Set headlessServiceHost to the K8s headless service DNS name for worker pods so that
+# InetAddress.getAllByName() resolves to all pod IPs.
+workerInvalidationConfig:
+  headlessServiceHost: ${WORKER_HEADLESS_HOST:}
+  adminPort: ${WORKER_ADMIN_PORT:7201}
+  perPodTimeoutMs: 2000
+  enabled: true

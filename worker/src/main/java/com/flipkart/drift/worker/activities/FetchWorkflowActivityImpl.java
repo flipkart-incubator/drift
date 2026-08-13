@@ -61,8 +61,9 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
 
     @Override
     public Workflow fetchWorkflowBasedOnRequest(WorkflowStartRequest request) {
-        String issueId = request.getIssueDetail().getIssueId();
         String tenant = request.getThreadContext().getOrDefault("tenant", "fk");
+
+        // Preferred path: explicit workflowId + version in params. No issueDetail required.
         if (request.getParams() != null) {
             Map<String, Object> params = request.getParams();
             Object workflowId = params.get(WORKFLOW_ID);
@@ -70,6 +71,15 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
             if (workflowId != null && version != null) {
                 return fetchWorkflow(workflowId.toString(), version.toString(), tenant);
             }
+        }
+
+        // Backward-compatible fallback: resolve workflow via issueId mapping.
+        String issueId = resolveIssueId(request);
+        if (issueId == null || issueId.trim().isEmpty()) {
+            throw Activity.wrap(new RuntimeException(
+                "Unable to resolve workflow: provide either params." + WORKFLOW_ID +
+                " and params." + VERSION + ", or a valid issueDetail.issueId."
+            ));
         }
 
         IssueWorkflowMapping issueWorkflowMapping = issueWorkflowMappingService.getIssueWorkflowMappingForIssue(issueId);
@@ -95,5 +105,9 @@ public class FetchWorkflowActivityImpl implements FetchWorkflowActivity {
     public WorkflowNode fetchWorkflowNode(String issueId, String nodeName, String tenant) {
         Workflow workflow = fetchWorkflowBasedOnIssueId(issueId, tenant);
         return workflow.getStates().get(nodeName);
+    }
+
+    private static String resolveIssueId(WorkflowStartRequest request) {
+        return request.getIssueDetail() != null ? request.getIssueDetail().getIssueId() : null;
     }
 }

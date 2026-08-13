@@ -64,7 +64,8 @@ public class InstructionNodeActivityImpl extends BaseNodeActivityImpl<Instructio
             if (workflowAttributeDetails != null) {
                 workflowStatus = WorkflowStatus.valueOf(workflowAttributeDetails.getAttribute());
             } else {
-                workflowStatus = activityRequest.getIsTerminal() ? WorkflowStatus.COMPLETED : WorkflowStatus.WAITING;
+                // Always return WAITING here; BaseNodeActivityImpl overrides to COMPLETED when isTerminal=true
+                workflowStatus = WorkflowStatus.WAITING;
             }
 
             return ActivityResponse.builder()

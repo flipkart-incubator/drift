@@ -1,0 +1,22 @@
+{{- if .Values.headlessService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-headless
+  namespace: {{ .Values.namespace }}
+  labels:
+{{- range $key, $val := .Values.labels }}
+    {{ $key }}: {{ $val | quote }}
+{{- end }}
+spec:
+  clusterIP: None  # headless: DNS resolves to individual pod IPs
+  selector:
+{{- range $key, $val := .Values.selectorLabels }}
+    {{ $key }}: {{ $val | quote }}
+{{- end }}
+  ports:
+    - name: admin
+      port: {{ .Values.headlessService.adminPort }}
+      targetPort: {{ .Values.headlessService.adminPort }}
+      protocol: TCP
+{{- end }}

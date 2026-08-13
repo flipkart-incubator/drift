@@ -1,6 +1,5 @@
 package com.flipkart.drift.worker.activities;
 
-import com.flipkart.drift.worker.config.RedisConfiguration;
 import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
@@ -10,17 +9,12 @@ import static com.flipkart.drift.commons.utils.Constants.Workflow.ASYNC_AWAIT_CH
 
 @Slf4j
 public class ReturnControlActivityImpl implements ReturnControlActivity {
-    private final RedisConfiguration redisConfiguration;
-    private final JedisPoolAbstract jedisSentinelPool;
+
+    @Inject(optional = true)
+    private JedisPoolAbstract jedisSentinelPool;
 
     @Inject
-    public ReturnControlActivityImpl(RedisConfiguration redisConfiguration, JedisPoolAbstract jedisSentinelPool) {
-        this.redisConfiguration = redisConfiguration;
-        this.jedisSentinelPool = jedisSentinelPool;
-    }
-
-    public String getRedisKey(String key) {
-        return redisConfiguration.getPrefix() + ":" + key;
+    public ReturnControlActivityImpl() {
     }
 
     public Long exec(String workflowId) {

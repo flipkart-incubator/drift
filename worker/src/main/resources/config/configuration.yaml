@@ -19,6 +19,7 @@ redisConfiguration:
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
+  redisEnabled: ${REDIS_ENABLED:true}  # override via env var; defaults to true for backward compatibility
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
