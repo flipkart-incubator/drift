@@ -22,6 +22,9 @@ import org.slf4j.Logger;
 
 import java.util.Map;
 
+import static com.flipkart.drift.worker.util.Constants.VERSION;
+import static com.flipkart.drift.worker.util.Constants.WORKFLOW_ID;
+
 @Data
 @Slf4j
 public class GenericWorkflowImpl implements com.flipkart.drift.workflows.GenericWorkflow {
@@ -43,7 +46,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
             Workflow workflow = fetchDsl(workflowStartRequest);
             if (workflow == null) {
                 throw ApplicationFailure.newNonRetryableFailure(
-                        "Workflow not found for issue: " + workflowStartRequest.getIssueDetail().getIssueId(),
+                        "Workflow not found for issueId: " + safeIssueId(workflowStartRequest),
                         "WORKFLOW_NOT_FOUND"
                 );
             }
@@ -123,6 +126,15 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
         this.workflowState.setWorkflowId(io.temporal.workflow.Workflow.getInfo().getWorkflowId());
         this.workflowState.setStatus(WorkflowStatus.CREATED);
         this.workflowState.setIssueDetail(workflowStartRequest.getIssueDetail());
+        // Capture explicit DSL identity so disconnected nodes can resolve without issueId.
+        if (workflowStartRequest.getParams() != null) {
+            Object dslWorkflowId = workflowStartRequest.getParams().get(WORKFLOW_ID);
+            Object dslVersion = workflowStartRequest.getParams().get(VERSION);
+            if (dslWorkflowId != null && dslVersion != null) {
+                this.workflowState.setWorkflowDslId(dslWorkflowId.toString());
+                this.workflowState.setWorkflowVersion(dslVersion.toString());
+            }
+        }
         this.workflowState.setWorkflowExecutionMode(
                 workflowStartRequest.getWorkflowExecutionMode() != null
                         ? workflowStartRequest.getWorkflowExecutionMode()
@@ -133,22 +145,48 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     }
 
     private Workflow fetchDsl(WorkflowStartRequest workflowRequest) {
-        log.info("Fetching workflow DSL for issueId: {}", workflowRequest.getIssueDetail().getIssueId());
+        log.info("Fetching workflow DSL for issueId: {}", safeIssueId(workflowRequest));
         FetchWorkflowActivity fetchWorkflowActivity = io.temporal.workflow.Workflow.newActivityStub(
                 FetchWorkflowActivity.class, OptionsStore.activityOptions);
         return fetchWorkflowActivity.fetchWorkflowBasedOnRequest(workflowRequest);
 
     }
 
+    private static String safeIssueId(WorkflowStartRequest request) {
+        return request != null && request.getIssueDetail() != null
+                ? request.getIssueDetail().getIssueId() : null;
+    }
+
     @Timed(name = "workflow.execute.disconnected.duration")
     @Override
     public WorkflowUtilityResponse executeDisconnectedNode(WorkflowUtilityRequest workflowUtilityRequest) {
         String tenant = workflowUtilityRequest.getThreadContext().getOrDefault("tenant", "fk");
-        WorkflowNode workflowNode = io.temporal.workflow.Workflow.newActivityStub(
-                FetchWorkflowActivity.class,
-                OptionsStore.activityOptions).fetchWorkflowNode(
-                this.workflowState.getIssueDetail().getIssueId(),
-                workflowUtilityRequest.getNode(), tenant);
+        FetchWorkflowActivity fetchWorkflowActivity = io.temporal.workflow.Workflow.newActivityStub(
+                FetchWorkflowActivity.class, OptionsStore.activityOptions);
+        String node = workflowUtilityRequest.getNode();
+
+        WorkflowNode workflowNode;
+        if (this.workflowState.getWorkflowDslId() != null
+                && this.workflowState.getWorkflowVersion() != null) {
+            // Preferred path: resolve directly via the workflow DSL identity captured at start.
+            // Kept consistent with FetchWorkflowActivityImpl#fetchWorkflowBasedOnRequest, which
+            // also prefers params.workflowId/version over issueId.
+            Workflow workflow = fetchWorkflowActivity.fetchWorkflow(
+                    this.workflowState.getWorkflowDslId(),
+                    this.workflowState.getWorkflowVersion(), tenant);
+            workflowNode = workflow.getStates().get(node);
+        } else {
+            String issueId = this.workflowState.getIssueDetail() != null
+                    ? this.workflowState.getIssueDetail().getIssueId() : null;
+            if (issueId == null || issueId.trim().isEmpty()) {
+                throw ApplicationFailure.newNonRetryableFailure(
+                        "Cannot execute disconnected node: workflow has neither workflowId/version nor issueId.",
+                        "WORKFLOW_RESOLUTION_FAILED"
+                );
+            }
+            // Backward-compatible fallback: resolve via issue mapping.
+            workflowNode = fetchWorkflowActivity.fetchWorkflowNode(issueId, node, tenant);
+        }
         return nodeExecutor.executeWorkflowNode(workflowUtilityRequest, workflowNode);
     }
 }
