@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.exception.mapper.ApiExceptionMapper;
+import com.flipkart.drift.api.filters.IdempotencyFilter;
 import com.flipkart.drift.api.filters.RequestFilter;
 import com.flipkart.drift.api.filters.ResponseFilter;
 import com.flipkart.drift.api.resources.WorkflowResource;
@@ -68,6 +69,7 @@ public class DriftApplication extends Application<DriftConfiguration> {
         environment.jersey().register(injector.getInstance(NodeDefinitionResource.class));
         environment.jersey().register(injector.getInstance(WorkflowDefinitionResource.class));
         environment.jersey().register(injector.getInstance(RequestFilter.class));
+        environment.jersey().register(injector.getInstance(IdempotencyFilter.class));
         environment.jersey().register(injector.getInstance(ResponseFilter.class));
         environment.jersey().register(injector.getInstance(ApiExceptionMapper.class));
         final JmxReporter reporter = JmxReporter.forRegistry(metricRegistry).build();
