@@ -51,4 +51,6 @@ public class DriftWorkerConfiguration extends Configuration {
 
     //Optional : only required when a real (non-NoOp) ABTestingProvider is wired in via SPI
     private String abPropertiesPath;
+
+    private ActivityDefaultsConfig activityDefaults = new ActivityDefaultsConfig();
 }
