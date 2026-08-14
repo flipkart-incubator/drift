@@ -1,107 +1,180 @@
 package com.flipkart.drift.api.service.builder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flipkart.drift.commons.exception.ApiException;
-import com.flipkart.drift.commons.model.node.Workflow;
+import com.flipkart.drift.api.exception.ApiException;
+import com.flipkart.drift.commons.model.node.*;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.WorkflowDefinitionDao;
 import com.flipkart.drift.persistence.entity.WorkflowHB;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import redis.clients.jedis.Jedis;
+import org.mockito.junit.jupiter.MockitoExtension;
 import redis.clients.jedis.JedisSentinelPool;
 
-import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class WorkflowDefinitionServiceTest {
 
-    @Mock
-    private WorkflowDefinitionDao workflowDefinitionDao;
-
-    @Mock
-    private JedisSentinelPool jedisSentinelPool;
-
-    @Mock
-    private Jedis jedis;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private NodeDefinitionService nodeDefinitionService;
+    @Mock private WorkflowDefinitionDao workflowDefinitionDao;
+    @Mock private NodeDefinitionService nodeDefinitionService;
+    @Mock private JedisSentinelPool jedisSentinelPool;
 
     private WorkflowDefinitionService service;
-    private AutoCloseable mocks;
 
-    private static final String WORKFLOW_ID = "testWorkflow";
-    private static final String SNAPSHOT_KEY = WORKFLOW_ID + "_SNAPSHOT";
-    private static final String LATEST_KEY = WORKFLOW_ID + "_LATEST";
+    private static final String WF_ID = "test_wf";
 
     @BeforeEach
     void setUp() {
-        mocks = MockitoAnnotations.openMocks(this);
-        service = new WorkflowDefinitionService(workflowDefinitionDao, objectMapper, jedisSentinelPool, nodeDefinitionService);
-        lenient().when(jedisSentinelPool.getResource()).thenReturn(jedis);
+        service = new WorkflowDefinitionService(workflowDefinitionDao, new ObjectMapper(),
+                jedisSentinelPool, nodeDefinitionService);
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        mocks.close();
+    private WorkflowNode node(String name) {
+        WorkflowNode n = new WorkflowNode();
+        n.setInstanceName(name);
+        n.setResourceId("res_" + name);
+        n.setResourceVersion("1");
+        return n;
     }
 
-    private WorkflowHB buildWorkflowHB(String key, String version) {
-        Workflow workflow = new Workflow();
-        workflow.setId(WORKFLOW_ID);
-        workflow.setStartNode("startNode");
-        if (version != null) {
-            workflow.setVersion(version);
-        }
+    private Workflow wf(String startNode, String... nodeNames) {
+        Map<String, WorkflowNode> states = new LinkedHashMap<>();
+        for (String name : nodeNames) states.put(name, node(name));
+        Workflow w = new Workflow();
+        w.setId(WF_ID);
+        w.setStartNode(startNode);
+        w.setStates(states);
+        return w;
+    }
+
+    private void stubDao(Workflow w) throws IOException {
         WorkflowHB hb = new WorkflowHB();
-        hb.setWorkflowKey(key);
-        hb.setWorkflowData(workflow);
-        return hb;
+        hb.setWorkflowKey(WF_ID + "_SNAPSHOT");
+        hb.setWorkflowData(w);
+        when(workflowDefinitionDao.get(anyString(), eq(ConnectionType.HOT))).thenReturn(hb);
     }
 
     @Test
-    void publishWorkflow_firstPublish_returnsWorkflowWithVersionOne() throws IOException {
-        WorkflowHB snapshotHB = buildWorkflowHB(SNAPSHOT_KEY, null);
-        when(workflowDefinitionDao.get(eq(SNAPSHOT_KEY), eq(ConnectionType.HOT))).thenReturn(snapshotHB);
-        when(workflowDefinitionDao.get(eq(LATEST_KEY), eq(ConnectionType.HOT))).thenReturn(null);
+    void t01_put_fullReplacement_deletesOmittedNode() throws Exception {
+        // Existing: nodeA (start), nodeB, nodeC — payload omits nodeC → nodeC deleted
+        Workflow existing = wf("nodeA", "nodeA", "nodeB", "nodeC");
+        stubDao(existing);
 
-        Workflow result = service.publishWorkflow(WORKFLOW_ID);
+        Workflow payload = wf("nodeA", "nodeA", "nodeB");
+        Workflow result = service.updateWorkflow(payload);
 
-        assertNotNull(result);
-        assertEquals("1", result.getVersion());
+        assertTrue(result.getStates().containsKey("nodeA"));
+        assertTrue(result.getStates().containsKey("nodeB"));
+        assertFalse(result.getStates().containsKey("nodeC"));
     }
 
     @Test
-    void publishWorkflow_subsequentPublish_returnsWorkflowWithIncrementedVersion() throws IOException {
-        WorkflowHB snapshotHB = buildWorkflowHB(SNAPSHOT_KEY, null);
-        WorkflowHB latestHB = buildWorkflowHB(LATEST_KEY, "5");
-        when(workflowDefinitionDao.get(eq(SNAPSHOT_KEY), eq(ConnectionType.HOT))).thenReturn(snapshotHB);
-        when(workflowDefinitionDao.get(eq(LATEST_KEY), eq(ConnectionType.HOT))).thenReturn(latestHB);
+    void t02_put_batchDelete_omitMultipleNodes() throws Exception {
+        // Payload omits nodeB and nodeC in one PUT — both deleted atomically
+        Workflow existing = wf("nodeA", "nodeA", "nodeB", "nodeC");
+        stubDao(existing);
 
-        Workflow result = service.publishWorkflow(WORKFLOW_ID);
+        Workflow payload = wf("nodeA", "nodeA");
+        Workflow result = service.updateWorkflow(payload);
 
-        assertNotNull(result);
-        assertEquals("6", result.getVersion());
+        assertEquals(1, result.getStates().size());
+        assertTrue(result.getStates().containsKey("nodeA"));
     }
 
     @Test
-    void publishWorkflow_exceptionFromDao_throwsApiException() throws IOException {
-        when(workflowDefinitionDao.get(eq(SNAPSHOT_KEY), eq(ConnectionType.HOT))).thenThrow(new IOException("hbase read failed"));
+    void t03_put_statesNull_metadataOnlyUpdate_statesUnchanged() throws Exception {
+        // Payload has no states field (null) → states untouched, only comment updated
+        Workflow existing = wf("nodeA", "nodeA", "nodeB");
+        existing.setComment("old comment");
+        stubDao(existing);
 
-        ApiException ex = assertThrows(ApiException.class, () -> service.publishWorkflow(WORKFLOW_ID));
+        Workflow payload = new Workflow();
+        payload.setId(WF_ID);
+        payload.setComment("new comment");
 
-        assertEquals(Response.Status.INTERNAL_SERVER_ERROR, ex.getStatus());
+        Workflow result = service.updateWorkflow(payload);
+
+        assertEquals("new comment", result.getComment());
+        assertTrue(result.getStates().containsKey("nodeA"), "states must be preserved when payload states is null");
+        assertTrue(result.getStates().containsKey("nodeB"), "states must be preserved when payload states is null");
+    }
+
+    // ---- graph-integrity validation tests (PUT path) ----
+
+    @Test
+    void t04_put_danglingNextNode_rejected400() throws Exception {
+        // nodeA.nextNode points to nodeB, but nodeB is omitted from payload → 400
+        Workflow existing = wf("nodeA", "nodeA", "nodeB");
+        stubDao(existing);
+
+        Workflow payload = wf("nodeA", "nodeA");
+        payload.getStates().get("nodeA").setNextNode("nodeB"); // dangling reference
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.updateWorkflow(payload));
+        assertEquals(400, ex.getStatus().getStatusCode());
+        assertTrue(ex.getMessage().contains("NEXT_NODE from=nodeA target=nodeB"));
+    }
+
+    @Test
+    void t05_put_danglingDefaultFailureNode_rejected400() throws Exception {
+        Workflow existing = wf("nodeA", "nodeA", "nodeB");
+        stubDao(existing);
+
+        Workflow payload = wf("nodeA", "nodeA"); // nodeB omitted
+        payload.setDefaultFailureNode("nodeB");  // still references nodeB
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.updateWorkflow(payload));
+        assertEquals(400, ex.getStatus().getStatusCode());
+        assertTrue(ex.getMessage().contains("DEFAULT_FAILURE target=nodeB"));
+    }
+
+    @Test
+    void t06_put_danglingCompletionNode_rejected400() throws Exception {
+        Workflow existing = wf("nodeA", "nodeA", "nodeB");
+        stubDao(existing);
+
+        Workflow payload = wf("nodeA", "nodeA"); // nodeB omitted
+        payload.setPostWorkflowCompletionNodes(Collections.singletonList("nodeB"));
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.updateWorkflow(payload));
+        assertEquals(400, ex.getStatus().getStatusCode());
+        assertTrue(ex.getMessage().contains("COMPLETION target=nodeB"));
+    }
+
+    @Test
+    void t07_put_startNodeNotInStates_rejected400() throws Exception {
+        Workflow existing = wf("nodeA", "nodeA", "nodeB");
+        stubDao(existing);
+
+        // Payload changes startNode to a node that isn't in the submitted states
+        Workflow payload = wf("nodeA", "nodeA", "nodeB");
+        payload.setStartNode("nodeX"); // nodeX doesn't exist in states
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.updateWorkflow(payload));
+        assertEquals(400, ex.getStatus().getStatusCode());
+        assertTrue(ex.getMessage().contains("START_NODE target=nodeX"));
+    }
+
+    // ---- graph-integrity validation tests (publishWorkflow path) ----
+
+    @Test
+    void t08_publish_brokenSnapshot_rejected400() throws Exception {
+        // SNAPSHOT has nodeA.nextNode pointing to nodeB, but nodeB is missing from states
+        Workflow broken = wf("nodeA", "nodeA");
+        broken.getStates().get("nodeA").setNextNode("nodeB"); // dangling
+        stubDao(broken);
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.publishWorkflow(WF_ID));
+        assertEquals(400, ex.getStatus().getStatusCode());
+        assertTrue(ex.getMessage().contains("NEXT_NODE from=nodeA target=nodeB"));
     }
 }

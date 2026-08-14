@@ -9,6 +9,7 @@ import com.flipkart.drift.commons.model.enums.Version;
 import com.flipkart.drift.commons.model.node.BranchNode;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.flipkart.drift.commons.model.node.Workflow;
+import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.WorkflowDefinitionDao;
 import com.flipkart.drift.persistence.entity.WorkflowHB;
@@ -73,7 +74,7 @@ public class WorkflowDefinitionService {
         WorkflowHB existingWorkflowHB = getWorkflowHB(workflowKey);
         Workflow existingWorkflow = existingWorkflowHB.getWorkflowData();
 
-        // Merge fields
+        // Merge scalar fields (null = no change)
         if (workflowData.getComment() != null) {
             existingWorkflow.setComment(workflowData.getComment());
         }
@@ -90,13 +91,11 @@ public class WorkflowDefinitionService {
             existingWorkflow.setPostWorkflowCompletionNodes(workflowData.getPostWorkflowCompletionNodes());
         }
 
-        // Merge state map data individually
+        // Full replacement: payload states become the new states; omitted nodes are deleted.
+        // If states is null in the payload, states are left unchanged (metadata-only update).
         if (workflowData.getStates() != null) {
-            if (existingWorkflow.getStates() == null) {
-                existingWorkflow.setStates(workflowData.getStates());
-            } else {
-                workflowData.getStates().forEach((key, value) -> existingWorkflow.getStates().put(key, value));
-            }
+            existingWorkflow.setStates(workflowData.getStates());
+            validateGraphIntegrity(existingWorkflow);
         }
 
         updateWorkflowInHBase(workflowKey, existingWorkflow);
@@ -211,6 +210,40 @@ public class WorkflowDefinitionService {
         }
     }
 
+    private void validateGraphIntegrity(Workflow workflow) {
+        Map<String, WorkflowNode> states = workflow.getStates();
+        if (states == null || states.isEmpty()) return;
+
+        List<String> dangling = new ArrayList<>();
+
+        if (workflow.getStartNode() != null && !states.containsKey(workflow.getStartNode())) {
+            dangling.add("START_NODE target=" + workflow.getStartNode());
+        }
+        if (workflow.getDefaultFailureNode() != null && !states.containsKey(workflow.getDefaultFailureNode())) {
+            dangling.add("DEFAULT_FAILURE target=" + workflow.getDefaultFailureNode());
+        }
+        if (workflow.getPostWorkflowCompletionNodes() != null) {
+            for (String comp : workflow.getPostWorkflowCompletionNodes()) {
+                if (!states.containsKey(comp)) {
+                    dangling.add("COMPLETION target=" + comp);
+                }
+            }
+        }
+        states.forEach((name, node) -> {
+            if (node.getNextNode() != null && !states.containsKey(node.getNextNode())) {
+                dangling.add("NEXT_NODE from=" + name + " target=" + node.getNextNode());
+            }
+        });
+
+        if (!dangling.isEmpty()) {
+            throw new com.flipkart.drift.api.exception.ApiException(
+                Response.Status.BAD_REQUEST,
+                "dangling references in submitted states: [" + String.join(", ", dangling)
+                + "] — include the referenced nodes in the payload or clear the references"
+            );
+        }
+    }
+
     private List<String> getBranchChoices(NodeDefinition nodeDefinition) {
         List<String> branchChoices = new ArrayList<>();
         if (nodeDefinition != null && nodeDefinition.getType() == NodeType.BRANCH) {
@@ -227,7 +260,7 @@ public class WorkflowDefinitionService {
             String snapshotKey = generateRowKey(id, Version.SNAPSHOT);
             WorkflowHB snapshotWorkflowHB = getWorkflowHB(snapshotKey);
             Workflow workflow = snapshotWorkflowHB.getWorkflowData();
-
+            validateGraphIntegrity(workflow);
             String latestKey = generateRowKey(id, Version.LATEST);
             WorkflowHB latestWorkflowHB = workflowDefinitionDao.get(latestKey, ConnectionType.HOT);
             Integer version;
@@ -257,7 +290,9 @@ public class WorkflowDefinitionService {
             publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, WORKFLOW_EVENT_ID + " " + versionKey);
             publishRedisEvent(jedisSentinelPool, DSL_UPDATE_CHANNEL, WORKFLOW_EVENT_ID + " " + latestKey);
 
-            return workflow;
+        } catch (com.flipkart.drift.api.exception.ApiException e) {
+            // Preserve 400 from validateGraphIntegrity — do not wrap as 500.
+            throw e;
         } catch (Exception e) {
             throw new ApiException("Error while publishing workflow in HBase", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
