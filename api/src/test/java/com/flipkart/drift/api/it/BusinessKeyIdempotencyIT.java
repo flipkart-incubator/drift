@@ -7,6 +7,7 @@ import com.flipkart.drift.api.filters.IdempotencyFilter;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.filters.ResponseFilter;
 import com.flipkart.drift.api.service.RedisPubSubService;
+import com.flipkart.drift.api.service.builder.WorkflowDefinitionService;
 import com.flipkart.drift.api.service.TemporalService;
 import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.api.service.utils.IdempotencyKeyResolver;
@@ -100,7 +101,8 @@ class BusinessKeyIdempotencyIT {
         }).when(redisPubSubService).subscribeAndExecute(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
 
-        temporalService = new TemporalService(redisPubSubService, configuration, new Utility(), metrics);
+        temporalService = new TemporalService(redisPubSubService, configuration, new Utility(), metrics,
+                mock(WorkflowDefinitionService.class));
         Field clientField = TemporalService.class.getDeclaredField("client");
         clientField.setAccessible(true);
         clientField.set(temporalService, testEnv.getWorkflowClient());
