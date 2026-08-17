@@ -1,12 +1,14 @@
 package com.flipkart.drift.commons.model.node;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.flipkart.drift.commons.model.enums.WorkflowNodeType;
 import com.flipkart.drift.commons.model.waitConfig.WaitConfig;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -22,6 +24,13 @@ public class WorkflowNode {
     private String contextOverrideKey;
     private String nextNode;
     private boolean end;
+
+    @JsonProperty("timeoutSeconds")
+    private Integer timeoutSeconds;
+
+    @JsonProperty("retryConfig")
+    private NodeRetryConfig retryConfig;
+
     NodeDefinition nodeDefinition; // This is populated while fetching WorkflowDefinition in FetchWorkflowActivity
 
     /**
@@ -30,4 +39,10 @@ public class WorkflowNode {
      * Null for nodes that do not need post-execution wait.
      */
     private WaitConfig waitConfig;
+
+    /**
+     * Parallel workflows only: predecessor instanceNames that must complete successfully
+     * before this node may start. Serial workflows use nextNode instead.
+     */
+    private List<String> dependsOn;
 }

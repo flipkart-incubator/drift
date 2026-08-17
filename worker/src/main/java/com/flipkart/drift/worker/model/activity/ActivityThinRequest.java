@@ -18,4 +18,7 @@ public class ActivityThinRequest<T extends NodeDefinition> {
     private WorkflowNode workflowNode;
     private T nodeDefinition;
     private Map<String, String> threadContext;
+    /** When true, node parameters are stored under {instanceName}_nodeParameters in HBase. */
+    @Builder.Default
+    private boolean parallelExecution = false;
 }

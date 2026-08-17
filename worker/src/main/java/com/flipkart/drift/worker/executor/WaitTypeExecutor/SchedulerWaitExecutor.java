@@ -3,17 +3,16 @@ package com.flipkart.drift.worker.executor.WaitTypeExecutor;
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
 import com.flipkart.drift.commons.model.node.WaitNode;
 import com.flipkart.drift.commons.model.waitConfig.SchedulerWaitConfig;
-import com.flipkart.drift.sdk.model.client.ScheduleRequest;
 import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.sdk.spi.scheduler.SchedulerProvider;
 import com.flipkart.drift.worker.Utility.SchedulerInitializer;
 import com.flipkart.drift.worker.model.activity.ActivityRequest;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;
+import com.flipkart.drift.worker.scheduler.SchedulerRegistrationUtil;
 import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class SchedulerWaitExecutor implements WaitTypeExecutor {
@@ -35,20 +34,14 @@ public class SchedulerWaitExecutor implements WaitTypeExecutor {
         try {
             SchedulerWaitConfig config = activityRequest.getNodeDefinition().getTypedConfig(SchedulerWaitConfig.class);
             String workflowId = activityRequest.getWorkflowId();
-            long scheduleTimeMillis = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(config.getDuration());
-
-            ScheduleRequest schedulerData = ScheduleRequest.builder()
-                    .scheduleTimeInMillis(scheduleTimeMillis)
-                    .workflowId(workflowId)
-                    .build();
-
-            Map<String, String> threadContext = activityRequest.getThreadContext();
-            String perfFlagStr = threadContext != null ? threadContext.get("perfFlag") : null;
-            boolean perfFlag = "true".equalsIgnoreCase(perfFlagStr);
-
-            if (!perfFlag) {
-                schedulerProvider.addSchedule(schedulerData);
+            String instanceName = activityRequest.getInstanceName();
+            if (instanceName == null || instanceName.isBlank()) {
+                instanceName = activityRequest.getNodeDefinition().getId();
             }
+            Map<String, String> threadContext = activityRequest.getThreadContext();
+
+            SchedulerRegistrationUtil.registerSchedulerWait(
+                    schedulerProvider, workflowId, instanceName, config.getDuration(), threadContext);
 
             return ActivityResponse.builder()
                     .workflowStatus(config.getExecutionMode() == ExecutionMode.SYNC
