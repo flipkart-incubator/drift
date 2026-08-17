@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Builder
 @AllArgsConstructor
@@ -20,4 +21,6 @@ public class ActivityThinResponse implements Serializable {
     private JsonNode errorResponse;
     private View view;
     private String disposition;
+    /** Resolved expected event types from OnEventExecutor (via var or static list); null for all other node types. */
+    private List<String> resolvedExpectedEventTypes;
 }
