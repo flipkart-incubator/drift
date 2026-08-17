@@ -31,7 +31,6 @@ env:
   REDIS_MASTER: "your-redis-master"
   REDIS_SENTINELS: "your-redis-sentinel:26379"
   REDIS_PREFIX: "drift"
-  REDIS_DATABASE: "0"
   HBASE_CONFIG_BUCKET: "file:////usr/share/drift-api/config/hbase.properties"
   TEMPORAL_FRONTEND: "your-temporal-frontend:7233"
   TEMPORAL_TASK_QUEUE: "DRIFT_QUEUE"
@@ -41,12 +40,6 @@ env:
   # DNS name of the worker headless service for cache invalidation fanout (used when redisEnabled=false).
   # Format: <worker-release-name>-headless.<namespace>.svc.cluster.local
   WORKER_HEADLESS_HOST: "drift-worker-headless.drift.svc.cluster.local"
-  # Set to false to disable Redis and use DNS fanout for cache invalidation instead
-  REDIS_ENABLED: ""
-  # DNS name of the worker headless service for cache invalidation fanout (used when REDIS_ENABLED=false).
-  # Format: <worker-release-name>-headless.<namespace>.svc.cluster.local
-  # Admin port of the worker pods (must match the worker's adminConnectors port)
-  WORKER_ADMIN_PORT: ""
 
 jvm:
   heapSize:

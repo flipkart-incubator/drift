@@ -3,8 +3,6 @@ package com.flipkart.drift.worker.bootstrap;
 
 import com.flipkart.drift.worker.activities.*;
 import com.flipkart.drift.worker.config.DriftWorkerConfiguration;
-import com.flipkart.drift.worker.temporal.ActivityOptionsBuilder;
-import com.flipkart.drift.worker.temporal.ActivityOptionsBuilderHolder;
 import com.flipkart.drift.worker.temporal.OptionsStore;
 import com.flipkart.drift.worker.workflows.GenericWorkflowImpl;
 import com.google.inject.Injector;
@@ -29,10 +27,8 @@ public class TemporalWorkerManaged implements Managed {
 
     private final WorkerFactory workerFactory;
     private final long terminationTimeoutInSec;
-    private final DriftWorkerConfiguration configuration;
 
     public TemporalWorkerManaged(Injector injector, DriftWorkerConfiguration configuration, Scope metricsScope) {
-        this.configuration = configuration;
         this.workerFactory = createWorkerFactory(injector, configuration, metricsScope);
         this.terminationTimeoutInSec = configuration.getAwaitTerminationTimeoutInSec();
     }
@@ -40,8 +36,6 @@ public class TemporalWorkerManaged implements Managed {
     @Override
     public void start() {
         log.info("Starting Temporal Worker");
-        ActivityOptionsBuilderHolder.init(
-                new ActivityOptionsBuilder(this.configuration.getActivityDefaults()));
         workerFactory.start();
         log.info("Started Temporal Worker !!!!");
     }

@@ -15,27 +15,20 @@ logging:
     - type: console
       threshold: ALL
       timeZone: IST
-      logFormat: "%date %level [%thread] %logger{0} [%X{id}][%X{idempotencyKey}] %msg%n"
-
-idempotencyConfig:
-  # Request header name(s) checked for a client-supplied idempotency key.
-  headers: [${IDEMPOTENCY_HEADERS:-X-Drift-Idempotency-Key}]
-  # Whether requests without an idempotency key header are allowed through unchanged.
-  optional: ${IDEMPOTENCY_OPTIONAL:-true}
+      logFormat: "%date %level [%thread] %logger{0} [%X{id}] %msg%n"
 
 redisConfiguration:
   password: ${REDIS_PASSWORD}
   master: ${REDIS_MASTER}
   sentinels: ${REDIS_SENTINELS}
   prefix: ${REDIS_PREFIX}
-  database: ${REDIS_DATABASE:-0}
   maxTotal: 50
   maxWaitMillis: 100
   maxIdle: 25
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
-  redisEnabled: ${REDIS_ENABLED:true}  # override via env var; defaults to true for backward compatibility
+  redisEnabled: false  # set to false in environments without Redis; requires ASYNC executionMode
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
@@ -49,12 +42,6 @@ staticCacheRefreshConfig:
 cacheMaxEntriesConfig:
   nodeDefinitionConfig: 1000 # 100 nodes, 10 versions each
   workflowConfig: 1000 # 100 workflows, 10 versions each
-
-hbaseNamespaceConfig:
-  hot: ${HBASE_NAMESPACE_HOT:-ims_hot}
-  cold: ${HBASE_NAMESPACE_COLD:-ims_cold}
-  archival: ${HBASE_NAMESPACE_ARCHIVAL:-ims_archive}
-  audit: ${HBASE_NAMESPACE_AUDIT:-ims_audit}
 
 hbasePropertiesPath: ${HBASE_CONFIG_BUCKET}
 
@@ -71,6 +58,6 @@ hadoopLoginUser: ${HADOOP_LOGIN_USER}
 # InetAddress.getAllByName() resolves to all pod IPs.
 workerInvalidationConfig:
   headlessServiceHost: ${WORKER_HEADLESS_HOST:}
-  adminPort: ${WORKER_ADMIN_PORT:7201}
+  adminPort: 5601
   perPodTimeoutMs: 2000
   enabled: true

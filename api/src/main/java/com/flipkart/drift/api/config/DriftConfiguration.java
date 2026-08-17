@@ -2,13 +2,11 @@ package com.flipkart.drift.api.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.persistence.bootstrap.CacheMaxEntriesConfig;
-import com.flipkart.drift.persistence.bootstrap.HbaseNamespaceConfig;
 import com.flipkart.drift.persistence.bootstrap.StaticCacheRefreshConfig;
 import io.dropwizard.Configuration;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 @Getter
@@ -17,16 +15,12 @@ import javax.validation.constraints.NotNull;
 public class DriftConfiguration extends Configuration {
     @NotNull
     private RedisConfiguration redisConfiguration;
-    @Valid
-    private IdempotencyConfig idempotencyConfig;
     @NotNull
     private ExecutorServiceConfig cacheRefreshExecutorServiceConfig;
     @NotNull
     private StaticCacheRefreshConfig staticCacheRefreshConfig;
     @NotNull
     private CacheMaxEntriesConfig cacheMaxEntriesConfig;
-    
-    private HbaseNamespaceConfig hbaseNamespaceConfig;
     @NotNull
     private String hbasePropertiesPath;
     @NotNull

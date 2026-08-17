@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.glassfish.jersey.message.internal.ReaderWriter;
 import org.slf4j.MDC;
 
-import javax.annotation.Priority;
-import javax.ws.rs.Priorities;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Response;
@@ -24,7 +22,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Provider
-@Priority(Priorities.AUTHENTICATION)
 @Slf4j
 public class RequestFilter implements ContainerRequestFilter {
     public static final String TENANT_HEADER = "X_TENANT_ID";

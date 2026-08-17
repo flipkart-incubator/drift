@@ -23,7 +23,6 @@ import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
-import com.flipkart.drift.worker.temporal.ActivityOptionsBuilderHolder;
 import com.flipkart.drift.worker.temporal.OptionsStore;
 import com.flipkart.drift.workflows.GenericWorkflow;
 import com.google.common.collect.Sets;
@@ -96,8 +95,7 @@ public class WorkflowNodeExecutor {
             boolean isLocalActivity = localActivityTypes.contains(nodeDefinition.getType());
             ActivityStub activityStub = isLocalActivity ?
                     io.temporal.workflow.Workflow.newUntypedLocalActivityStub(OptionsStore.localActivityOptions) :
-                    io.temporal.workflow.Workflow.newUntypedActivityStub(
-                            ActivityOptionsBuilderHolder.get().build(currentNode));
+                    io.temporal.workflow.Workflow.newUntypedActivityStub(OptionsStore.activityOptionsV1);
 
             ActivityThinRequest<NodeDefinition> activityRequest = ActivityThinRequest.builder()
                     .workflowId(workflowState.getWorkflowId())
@@ -181,8 +179,7 @@ public class WorkflowNodeExecutor {
 
     public WorkflowUtilityResponse executeWorkflowNode(WorkflowUtilityRequest workflowUtilityRequest, WorkflowNode workflowNode) {
         NodeDefinition nodeDefinition = workflowNode.getNodeDefinition();
-        ActivityStub untypedActivityStub = io.temporal.workflow.Workflow.newUntypedActivityStub(
-                ActivityOptionsBuilderHolder.get().build(workflowNode));
+        ActivityStub untypedActivityStub = io.temporal.workflow.Workflow.newUntypedActivityStub(OptionsStore.activityOptionsV1);
         ActivityResponse response;
         io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
                 .disconnectedNodeState(workflowUtilityRequest, workflowState.getWorkflowId());

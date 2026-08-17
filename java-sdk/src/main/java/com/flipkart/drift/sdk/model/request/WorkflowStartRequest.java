@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import javax.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,9 +21,7 @@ import java.util.Set;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkflowStartRequest extends WorkflowRequest {
-    // Optional/deprecated. Prefer params.workflowId + params.version for workflow resolution.
-    // Retained for backward compatibility: when params do not carry workflowId/version,
-    // issueDetail.issueId is used to look up the workflow mapping.
+    @NotNull(message = "issueDetail cannot be null")
     @Deprecated
     private IssueDetail issueDetail;
     @Deprecated
