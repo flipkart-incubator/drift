@@ -8,6 +8,8 @@ import redis.clients.jedis.JedisSentinelPool;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import static com.flipkart.drift.api.service.utils.Utility.publishRedisEvent;
 import static com.flipkart.drift.commons.utils.Constants.Workflow.DSL_UPDATE_CHANNEL;
@@ -50,8 +52,9 @@ public class CacheInvalidationClient {
         if (workerInvalidationConfig == null || !workerInvalidationConfig.isEnabled()
                 || workerInvalidationConfig.getHeadlessServiceHost() == null
                 || workerInvalidationConfig.getHeadlessServiceHost().isBlank()) {
-            log.debug("Worker invalidation config not set or disabled, skipping fanout");
-            return;
+            throw new IllegalStateException(
+                "Cache invalidation is misconfigured: Redis is disabled and worker fanout is not configured. " +
+                "Enable Redis or set workerInvalidationConfig.headlessServiceHost.");
         }
         fanout(workerInvalidationConfig.getHeadlessServiceHost(),
                 workerInvalidationConfig.getAdminPort(),
@@ -69,23 +72,30 @@ public class CacheInvalidationClient {
             }
         } catch (Exception e) {
             log.error("Error during DNS fanout to workers for cache type={} key={}", cacheType, key, e);
+            throw new IllegalStateException("DNS fanout failed for cache type=" + cacheType + " key=" + key, e);
         }
     }
 
     private void postInvalidation(String ip, int port, int timeoutMs, String cacheType, String key) {
-        String urlStr = String.format("http://%s:%d/tasks/cache-invalidate?type=%s&key=%s", ip, port, cacheType, key);
+        String urlStr = String.format("http://%s:%d/tasks/cache-invalidate?type=%s&key=%s", ip, port,
+                URLEncoder.encode(cacheType, StandardCharsets.UTF_8),
+                URLEncoder.encode(key, StandardCharsets.UTF_8));
+        HttpURLConnection conn = null;
         try {
             URL url = new URL(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(timeoutMs);
             conn.setReadTimeout(timeoutMs);
             conn.setDoOutput(true);
             int responseCode = conn.getResponseCode();
-            conn.disconnect();
             log.debug("Cache invalidation POST to {} returned {}", urlStr, responseCode);
         } catch (Exception e) {
             log.error("Failed to POST cache invalidation to {}: {}", urlStr, e.getMessage());
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
         }
     }
 }
