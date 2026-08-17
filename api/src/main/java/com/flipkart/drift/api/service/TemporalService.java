@@ -1,11 +1,14 @@
 package com.flipkart.drift.api.service;
 
 import com.flipkart.drift.api.config.DriftConfiguration;
+import com.flipkart.drift.api.config.RedisConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
 import com.flipkart.drift.api.service.builder.WorkflowDefinitionService;
 import com.flipkart.drift.commons.model.enums.ExecutionType;
 import com.flipkart.drift.commons.model.node.Workflow;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
+import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
@@ -24,6 +27,7 @@ import io.temporal.client.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.ws.rs.core.Response;
 import java.time.Duration;
@@ -42,6 +46,7 @@ public class TemporalService {
     public static final String RESUME = "resume";
     private final Utility utility;
     private final DriftConfiguration driftConfiguration;
+    private final IdempotencyMetrics idempotencyMetrics;
     private final WorkflowDefinitionService workflowDefinitionService;
 
     private static final String WORKFLOW_ID_PARAM = "workflowId";
@@ -51,6 +56,7 @@ public class TemporalService {
     public TemporalService(RedisPubSubService redisPubSubService,
                            DriftConfiguration driftConfiguration,
                            Utility utility,
+                           IdempotencyMetrics idempotencyMetrics,
                            WorkflowDefinitionService workflowDefinitionService) {
         this.stubsOptions = WorkflowServiceStubsOptions
                 .newBuilder()
@@ -61,11 +67,15 @@ public class TemporalService {
         this.client = WorkflowClient.newInstance(serviceStub);
         this.utility = utility;
         this.driftConfiguration = driftConfiguration;
+        this.idempotencyMetrics = idempotencyMetrics;
         this.workflowDefinitionService = workflowDefinitionService;
     }
 
     public WorkflowResponse startWorkflow(WorkflowStartRequest workflowStartRequest) {
-        if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().trim().isEmpty()) {
+        String resolvedWorkflowId = RequestThreadContext.get().getResolvedWorkflowId();
+        if (StringUtils.isNotBlank(resolvedWorkflowId)) {
+            workflowStartRequest.setWorkflowId(resolvedWorkflowId);
+        } else if (workflowStartRequest.getWorkflowId() == null || workflowStartRequest.getWorkflowId().isBlank()) {
             workflowStartRequest.setWorkflowId(utility.generateWorkflowId(null, false));
         }
         workflowStartRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
@@ -73,7 +83,22 @@ public class TemporalService {
     }
 
     public WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest) {
+        return executeWorkflow(workflowStartRequest, true);
+    }
+
+    /**
+     * @param allowPurgeRetry whether an already-started-but-history-purged race should
+     *                        be resolved by retrying the start once as a fresh workflow. Set to
+     *                        {@code false} on the retry attempt itself to guarantee termination
+     *                        (at most one retry per request, never unbounded recursion).
+     */
+    private WorkflowResponse executeWorkflow(WorkflowStartRequest workflowStartRequest, boolean allowPurgeRetry) {
         String workflowId = workflowStartRequest.getWorkflowId();
+        boolean idempotent = StringUtils.isNotBlank(RequestThreadContext.get().getResolvedWorkflowId());
+        WorkflowIdReusePolicy reusePolicy = idempotent
+                ? WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+                : WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING;
+
         WorkflowExecutionMode executionMode = resolveStartExecutionMode(workflowStartRequest);
         workflowStartRequest.setWorkflowExecutionMode(executionMode);
 
@@ -85,19 +110,23 @@ public class TemporalService {
                             .setWorkflowId(workflowId)
                             .setWorkflowExecutionTimeout(Duration.ofMinutes(1440))
                             .setTaskQueue(driftConfiguration.getTemporalTaskQueue())
-                            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING)
+                            .setWorkflowIdReusePolicy(reusePolicy)
                             .build()
             );
 
             if (executionMode == WorkflowExecutionMode.ASYNC) {
                 WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
+                if (idempotent) {
+                    idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+                }
                 return WorkflowResponse.builder()
                         .workflowId(workflowId)
                         .workflowStatus(WorkflowStatus.RUNNING)
                         .build();
             } else {
                 // SYNC mode: block until workflow reaches a terminal state via Redis
-                if (!driftConfiguration.getRedisConfiguration().isRedisEnabled()) {
+                RedisConfiguration redisConfiguration = driftConfiguration.getRedisConfiguration();
+                if (redisConfiguration != null && !redisConfiguration.isRedisEnabled()) {
                     throw new ApiException(Response.Status.BAD_REQUEST,
                             "SYNC execution mode requires Redis to be enabled. " +
                             "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
@@ -106,8 +135,16 @@ public class TemporalService {
                     WorkflowClient.start(workflow::startWorkflow, workflowStartRequest);
                     return null;
                 }, START);
+                if (idempotent) {
+                    idempotencyMetrics.miss(RequestThreadContext.get().getTenant(), RequestThreadContext.get().getClientId());
+                }
                 return buildResponseAndReturn(workflow);
             }
+        } catch (WorkflowExecutionAlreadyStarted e) {
+            // Most-specific-exception-first: WorkflowExecutionAlreadyStarted extends
+            // WorkflowException, so this catch MUST precede catch(WorkflowException) below,
+            // otherwise it is unreachable dead code.
+            return resolveAlreadyStartedWorkflow(workflowStartRequest, allowPurgeRetry);
         } catch (ApiException e) {
             throw e;
         } catch (WorkflowNotFoundException e) {
@@ -118,6 +155,39 @@ public class TemporalService {
         } catch (Exception e) {
             log.error("Unexpected error during workflow start: {}", e.getMessage(), e);
             throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to start workflow: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Resolves a duplicate start signaled by Temporal via {@code WorkflowExecutionAlreadyStarted}
+     * (the primary, server-arbitrated de-dup mechanism). Fetches and returns the existing
+     * workflow's state, marking the request as an idempotent replay. Handles the narrow
+     * history-purged race: if the existing workflow's state can no longer be queried
+     * because Temporal namespace retention has purged its history, meters that fact and retries
+     * the start once as a fresh workflow rather than surfacing a 502.
+     */
+    private WorkflowResponse resolveAlreadyStartedWorkflow(WorkflowStartRequest workflowStartRequest,
+                                                            boolean allowPurgeRetry) {
+        String workflowId = workflowStartRequest.getWorkflowId();
+        String tenant = RequestThreadContext.get().getTenant();
+        String clientId = RequestThreadContext.get().getClientId();
+        log.info("Workflow already started for idempotent wfId={}", workflowId);
+        idempotencyMetrics.alreadyStarted(tenant, clientId);
+        try {
+            GenericWorkflow existing = client.newWorkflowStub(GenericWorkflow.class, workflowId);
+            WorkflowResponse response = buildResponseAndReturn(existing);
+            RequestThreadContext.get().setResolvedFromExistingWorkflow(true);
+            return response;
+        } catch (WorkflowNotFoundException | WorkflowQueryException notFound) {
+            // History-purged edge case: the existing execution's history is gone by the time we
+            // query it. Not an error the caller should see -- meter it and treat the request as
+            // a fresh start (Temporal no longer has state under this workflowId to conflict with).
+            idempotencyMetrics.historyPurged(tenant, clientId);
+            if (!allowPurgeRetry) {
+                throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR,
+                        "Workflow " + workflowId + " could not be started or resolved after history-purge retry");
+            }
+            return executeWorkflow(workflowStartRequest, false);
         }
     }
 
@@ -136,12 +206,20 @@ public class TemporalService {
                 workflow.resumeWorkflow(workflowResumeRequest);
                 return buildResponseAndReturn(workflow);
             } else {
+                RedisConfiguration redisConfiguration = driftConfiguration.getRedisConfiguration();
+                if (redisConfiguration != null && !redisConfiguration.isRedisEnabled()) {
+                    throw new ApiException(Response.Status.BAD_REQUEST,
+                            "SYNC execution mode requires Redis to be enabled. " +
+                            "Set executionMode=ASYNC or enable Redis (redisEnabled=true).");
+                }
                 redisPubSubService.subscribeAndExecute(workflowResumeRequest.getWorkflowId(), () -> {
                     workflow.resumeWorkflow(workflowResumeRequest);
                     return null;
                 }, RESUME);
                 return buildResponseAndReturn(workflow);
             }
+        } catch (ApiException e) {
+            throw e;
         } catch (WorkflowNotFoundException e) {
             throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (WorkflowException e) {
