@@ -4,6 +4,9 @@ import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.config.RedisConfiguration;
 import com.flipkart.drift.api.filters.RequestThreadContext;
 import com.flipkart.drift.api.exception.ApiException;
+import com.flipkart.drift.api.service.builder.WorkflowDefinitionService;
+import com.flipkart.drift.commons.model.enums.ExecutionType;
+import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
@@ -44,12 +47,17 @@ public class TemporalService {
     private final Utility utility;
     private final DriftConfiguration driftConfiguration;
     private final IdempotencyMetrics idempotencyMetrics;
+    private final WorkflowDefinitionService workflowDefinitionService;
+
+    private static final String WORKFLOW_ID_PARAM = "workflowId";
+    private static final String VERSION_PARAM = "version";
 
     @Inject
     public TemporalService(RedisPubSubService redisPubSubService,
                            DriftConfiguration driftConfiguration,
                            Utility utility,
-                           IdempotencyMetrics idempotencyMetrics) {
+                           IdempotencyMetrics idempotencyMetrics,
+                           WorkflowDefinitionService workflowDefinitionService) {
         this.stubsOptions = WorkflowServiceStubsOptions
                 .newBuilder()
                 .setTarget(driftConfiguration.getTemporalFrontEnd())
@@ -60,6 +68,7 @@ public class TemporalService {
         this.utility = utility;
         this.driftConfiguration = driftConfiguration;
         this.idempotencyMetrics = idempotencyMetrics;
+        this.workflowDefinitionService = workflowDefinitionService;
     }
 
     public WorkflowResponse startWorkflow(WorkflowStartRequest workflowStartRequest) {
@@ -89,9 +98,9 @@ public class TemporalService {
         WorkflowIdReusePolicy reusePolicy = idempotent
                 ? WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
                 : WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING;
-        WorkflowExecutionMode executionMode = workflowStartRequest.getWorkflowExecutionMode() != null
-                ? workflowStartRequest.getWorkflowExecutionMode()
-                : WorkflowExecutionMode.SYNC;
+
+        WorkflowExecutionMode executionMode = resolveStartExecutionMode(workflowStartRequest);
+        workflowStartRequest.setWorkflowExecutionMode(executionMode);
 
         GenericWorkflow workflow;
         try {
@@ -187,11 +196,11 @@ public class TemporalService {
             workflowResumeRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowResumeRequest.getWorkflowId());
 
-            // Determine execution mode from the running workflow's persisted state
+            // Request-level mode takes priority (external event callers set ASYNC here).
+            // Falls back to the mode persisted when the workflow was started.
             WorkflowState currentState = workflow.getWorkflowState();
-            WorkflowExecutionMode executionMode = currentState.getWorkflowExecutionMode() != null
-                    ? currentState.getWorkflowExecutionMode()
-                    : WorkflowExecutionMode.SYNC;
+            WorkflowExecutionMode executionMode = resolveResumeExecutionMode(
+                    workflowResumeRequest, currentState);
 
             if (executionMode == WorkflowExecutionMode.ASYNC) {
                 workflow.resumeWorkflow(workflowResumeRequest);
@@ -271,5 +280,48 @@ public class TemporalService {
                 .workflowStatus(workflowState.getStatus())
                 .view(view)
                 .build();
+    }
+
+    private WorkflowExecutionMode resolveStartExecutionMode(WorkflowStartRequest request) {
+        Workflow workflow = loadWorkflowForRequest(request);
+        if (workflow != null && workflow.isParallel()) {
+            return workflow.getWorkflowExecutionMode() != null
+                    ? workflow.getWorkflowExecutionMode()
+                    : WorkflowExecutionMode.ASYNC;
+        }
+        return request.getWorkflowExecutionMode() != null
+                ? request.getWorkflowExecutionMode()
+                : WorkflowExecutionMode.SYNC;
+    }
+
+    private WorkflowExecutionMode resolveResumeExecutionMode(WorkflowResumeRequest request,
+                                                               WorkflowState state) {
+        if (state.getExecutionType() == ExecutionType.PARALLEL) {
+            return state.getWorkflowExecutionMode() != null
+                    ? state.getWorkflowExecutionMode()
+                    : WorkflowExecutionMode.ASYNC;
+        }
+        if (request.getWorkflowExecutionMode() != null) {
+            return request.getWorkflowExecutionMode();
+        }
+        return state.getWorkflowExecutionMode() != null
+                ? state.getWorkflowExecutionMode()
+                : WorkflowExecutionMode.SYNC;
+    }
+
+    private Workflow loadWorkflowForRequest(WorkflowStartRequest request) {
+        try {
+            if (request.getParams() != null) {
+                Object wfId = request.getParams().get(WORKFLOW_ID_PARAM);
+                Object version = request.getParams().get(VERSION_PARAM);
+                if (wfId != null && version != null) {
+                    return workflowDefinitionService.getWorkflowById(
+                            wfId.toString(), version.toString(), true);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not pre-load workflow DSL for execution mode: {}", e.getMessage());
+        }
+        return null;
     }
 }

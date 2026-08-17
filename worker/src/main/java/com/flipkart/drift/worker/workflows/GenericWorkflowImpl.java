@@ -2,10 +2,11 @@ package com.flipkart.drift.worker.workflows;
 
 import com.codahale.metrics.annotation.Timed;
 import com.flipkart.drift.commons.model.enums.WaitSemantics;
+import com.flipkart.drift.commons.model.enums.WaitSemantics;
+import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.worker.activities.FetchWorkflowActivity;
 import com.flipkart.drift.worker.activities.WorkflowContextManagerActivity;
 import com.flipkart.drift.worker.model.activity.ActivityThinResponse;
-import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.sdk.model.request.WorkflowResumeRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.sdk.model.request.WorkflowTerminateRequest;
@@ -61,7 +62,16 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                         "START_NODE_NOT_FOUND"
                 );
             }
-            executeWorkflowNodes(workflow, currentNode, workflowStartRequest.getWorkflowId(), workflowStartRequest.getThreadContext(), workflowStartRequest);
+            if (workflow.isParallel()) {
+                parallelExecutionActive = true;
+                this.workflowState.setExecutionType(com.flipkart.drift.commons.model.enums.ExecutionType.PARALLEL);
+                parallelEngine = new ParallelWorkflowEngine(workflowState, nodeExecutor);
+                resolveParallelExecutionMode(workflow, workflowStartRequest);
+                parallelEngine.execute(workflow, workflowStartRequest, workflowStartRequest.getThreadContext());
+            } else {
+                executeWorkflowNodes(workflow, currentNode, workflowStartRequest.getWorkflowId(),
+                        workflowStartRequest.getThreadContext(), workflowStartRequest);
+            }
 
         } catch (Exception e) {
             logger.error("Error while executing workflow: {}", e.getMessage(), e);
@@ -83,10 +93,15 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
     @Timed(name = "workflow.resume.duration")
     public void resumeWorkflow(WorkflowResumeRequest workflowResumeRequest) {
         try {
-            io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
-                    .resumeWorkflowState(workflowResumeRequest, this.workflowState.getCurrentNodeRef());
+            String nodeRef = parallelExecutionActive && parallelEngine != null
+                    ? parallelEngine.resolveNodeForEventType(workflowResumeRequest.getEventType())
+                    : this.workflowState.getCurrentNodeRef();
 
-            // Track the received event type for ON_EVENT multi-event waits.
+            if (nodeRef != null) {
+                io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
+                        .resumeWorkflowState(workflowResumeRequest, nodeRef);
+            }
+
             String eventType = workflowResumeRequest.getEventType();
             if (eventType != null) {
                 if (this.workflowState.getReceivedEventTypes() == null) {
@@ -95,11 +110,9 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                 this.workflowState.getReceivedEventTypes().add(eventType);
             }
 
-            if (isResumeConditionMet()) {
+            if (!parallelExecutionActive && isResumeConditionMet()) {
                 this.workflowState.setStatus(WorkflowStatus.RUNNING);
             }
-            // else: waitSemantics == ALL and not all events received yet —
-            // status stays WAITING, Workflow.await() re-evaluates and stays blocked.
         } catch (Exception e) {
             logger.error("Error resuming workflow: {}", e.getMessage(), e);
             this.workflowState.setStatus(WorkflowStatus.FAILED);
@@ -195,6 +208,13 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
         );
         io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
                 .persistWorkflowState(workflowStartRequest, io.temporal.workflow.Workflow.getInfo().getWorkflowId());
+    }
+
+    private void resolveParallelExecutionMode(Workflow workflow, WorkflowStartRequest workflowStartRequest) {
+        WorkflowExecutionMode mode = workflow.getWorkflowExecutionMode() != null
+                ? workflow.getWorkflowExecutionMode()
+                : WorkflowExecutionMode.ASYNC;
+        this.workflowState.setWorkflowExecutionMode(mode);
     }
 
     private Workflow fetchDsl(WorkflowStartRequest workflowRequest) {

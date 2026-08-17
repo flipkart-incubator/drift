@@ -3,7 +3,6 @@ package com.flipkart.drift.api.module;
 import com.codahale.metrics.MetricRegistry;
 import com.flipkart.drift.api.client.CacheInvalidationClient;
 import com.flipkart.drift.api.config.DriftConfiguration;
-import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.flipkart.drift.persistence.dao.IConnectionProvider;
 import com.flipkart.drift.api.exception.JerseyViolationInformativeExceptionMapper;
@@ -24,7 +23,6 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 import redis.clients.jedis.JedisSentinelPool;
-import redis.clients.jedis.Protocol;
 
 import java.util.*;
 
@@ -34,7 +32,6 @@ public class WorkflowClientModule extends AbstractModule {
     private final JedisSentinelPool jedisSentinelPool;
     private final Environment environment;
     private final DriftConfiguration driftConfiguration;
-    private final MetricRegistry metricRegistry;
 
 
     public WorkflowClientModule(DriftConfiguration driftConfiguration, Environment environment, MetricRegistry metricRegistry) {
@@ -42,7 +39,6 @@ public class WorkflowClientModule extends AbstractModule {
         this.environment = environment;
         this.driftConfiguration = driftConfiguration;
         this.jedisSentinelPool = provideJedisPool();
-        this.metricRegistry = metricRegistry;
     }
 
     private JedisSentinelPool provideJedisPool() {
@@ -59,13 +55,10 @@ public class WorkflowClientModule extends AbstractModule {
                 hostList.add(strTkn.nextToken());
             Set<String> sentinels = new HashSet<>(hostList);
             GenericObjectPoolConfig<?> genericObjectPoolConfig = getGenericObjectPoolConfig(redisConfiguration);
-            return new JedisSentinelPool(redisConfiguration.getMaster(), sentinels, genericObjectPoolConfig,
-                    Protocol.DEFAULT_TIMEOUT, redisConfiguration.getPassword(), redisConfiguration.getDatabase());
+            return new JedisSentinelPool(redisConfiguration.getMaster(), sentinels, genericObjectPoolConfig, redisConfiguration.getPassword());
         } catch (Exception e) {
             log.error("Failed to Connected to RedisDao Server {}", e.getMessage(), e);
             return null;
-            // TODO : Clean this up ... Change made so that bootstrap shouldn't be failing on redis failure
-//            throw new RedisStoreException(Response.Status.INTERNAL_SERVER_ERROR, "Unable to init redis config", e.getMessage());
         }
     }
 
@@ -194,21 +187,9 @@ public class WorkflowClientModule extends AbstractModule {
 
     @Provides
     @Singleton
-    public IdempotencyConfig getIdempotencyConfig() {
-        IdempotencyConfig config = this.driftConfiguration.getIdempotencyConfig();
-        return config != null ? config : new IdempotencyConfig();
-    }
-
-    @Provides
-    @Singleton
-    public MetricRegistry getMetricRegistry() {
-        return this.metricRegistry;
-    }
-
-    @Provides
-    @Singleton
     public CacheInvalidationClient getCacheInvalidationClient() {
         return new CacheInvalidationClient(this.driftConfiguration, this.jedisSentinelPool);
     }
 
 }
+

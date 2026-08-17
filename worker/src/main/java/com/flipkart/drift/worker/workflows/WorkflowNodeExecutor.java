@@ -1,6 +1,8 @@
 package com.flipkart.drift.worker.workflows;
 
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
+import com.flipkart.drift.commons.model.enums.WaitSemantics;
+import com.flipkart.drift.commons.model.enums.WaitType;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.commons.model.enums.WaitSemantics;
 import com.flipkart.drift.commons.model.enums.WaitType;
@@ -24,7 +26,6 @@ import com.flipkart.drift.commons.model.node.NodeDefinition;
 import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
-import com.flipkart.drift.worker.temporal.ActivityOptionsBuilderHolder;
 import com.flipkart.drift.worker.temporal.OptionsStore;
 import com.flipkart.drift.workflows.GenericWorkflow;
 import com.google.common.collect.Sets;
@@ -71,7 +72,17 @@ public class WorkflowNodeExecutor {
         executeNode(currentNode, threadContext, false);
     }
 
-    private ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, boolean updateState) {
+    public ActivityThinResponse executeParallelNode(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                     WorkflowStartRequest workflowStartRequest) {
+        if (currentNode.getNodeDefinition().getType() == NodeType.CHILD) {
+            invokeChild(workflowStartRequest, currentNode);
+            return null;
+        }
+        return executeNodeInternal(currentNode, threadContext, true, false);
+    }
+
+    private ActivityThinResponse executeNodeInternal(WorkflowNode currentNode, Map<String, String> threadContext,
+                                                      boolean parallelExecution, boolean updateState) {
         NodeDefinition nodeDefinition = currentNode.getNodeDefinition();
         if (nodeDefinition == null) {
             throw ApplicationFailure.newNonRetryableFailure(
@@ -81,24 +92,22 @@ public class WorkflowNodeExecutor {
         }
 
         try {
-            String logPrefix = updateState ? "Executing node" : "Executing post-workflow node";
-            logger.info("{}: {} with type: {}", logPrefix, currentNode.getInstanceName(), nodeDefinition.getType());
+            logger.info("Executing node: {} with type: {} (parallel={})",
+                    currentNode.getInstanceName(), nodeDefinition.getType(), parallelExecution);
 
-            // Determine if we should use local activity or standard activity
             boolean isLocalActivity = localActivityTypes.contains(nodeDefinition.getType());
             ActivityStub activityStub = isLocalActivity ?
                     io.temporal.workflow.Workflow.newUntypedLocalActivityStub(OptionsStore.localActivityOptions) :
-                    io.temporal.workflow.Workflow.newUntypedActivityStub(
-                            ActivityOptionsBuilderHolder.get().build(currentNode));
+                    io.temporal.workflow.Workflow.newUntypedActivityStub(OptionsStore.activityOptionsV1);
 
             ActivityThinRequest<NodeDefinition> activityRequest = ActivityThinRequest.builder()
                     .workflowId(workflowState.getWorkflowId())
                     .nodeDefinition(nodeDefinition)
                     .workflowNode(currentNode)
                     .threadContext(threadContext)
+                    .parallelExecution(parallelExecution)
                     .build();
 
-            // Execute the activity
             ActivityThinResponse response = activityStub.execute(
                     getActivityType(nodeDefinition.getType()),
                     ActivityThinResponse.class,
@@ -111,17 +120,20 @@ public class WorkflowNodeExecutor {
                         "ACTIVITY_RESPONSE_NULL"
                 );
             }
-            if (updateState) {
+            if (!parallelExecution && updateState) {
                 updateWorkflowState(response, currentNode);
                 applyOnEventWaitState(currentNode, nodeDefinition, response);
             }
             return response;
 
         } catch (Exception e) {
-            String errorPrefix = updateState ? "Error executing node" : "Error executing post-workflow node";
-            logger.error("{} {}: {}", errorPrefix, currentNode.getInstanceName(), e.getMessage(), e);
+            logger.error("Error executing node {}: {}", currentNode.getInstanceName(), e.getMessage(), e);
             throw e;
         }
+    }
+
+    private ActivityThinResponse executeNode(WorkflowNode currentNode, Map<String, String> threadContext, boolean updateState) {
+        return executeNodeInternal(currentNode, threadContext, false, updateState);
     }
 
     public void handleNodeResponseStatus(String workflowId, ActivityThinResponse activityThinResponse, Workflow workflow, Map<String, String> threadContext) {
@@ -170,8 +182,7 @@ public class WorkflowNodeExecutor {
 
     public WorkflowUtilityResponse executeWorkflowNode(WorkflowUtilityRequest workflowUtilityRequest, WorkflowNode workflowNode) {
         NodeDefinition nodeDefinition = workflowNode.getNodeDefinition();
-        ActivityStub untypedActivityStub = io.temporal.workflow.Workflow.newUntypedActivityStub(
-                ActivityOptionsBuilderHolder.get().build(workflowNode));
+        ActivityStub untypedActivityStub = io.temporal.workflow.Workflow.newUntypedActivityStub(OptionsStore.activityOptionsV1);
         ActivityResponse response;
         io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
                 .disconnectedNodeState(workflowUtilityRequest, workflowState.getWorkflowId());
@@ -322,6 +333,10 @@ public class WorkflowNodeExecutor {
             logger.info("Executing post-workflow completion nodes for workflow: {}", workflowId);
             executePostWorkflowCompletionNodes(workflow, threadContext);
         }
+    }
+
+    public void runPostWorkflowCompletionNodes(Workflow workflow, Map<String, String> threadContext) {
+        executePostWorkflowCompletionNodes(workflow, threadContext);
     }
 
     private void executePostWorkflowCompletionNodes(Workflow workflow, Map<String, String> threadContext) {

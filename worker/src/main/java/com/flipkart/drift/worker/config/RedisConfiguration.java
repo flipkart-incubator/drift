@@ -19,5 +19,4 @@ public class RedisConfiguration {
     private boolean testOnBorrow;
     private boolean blockWhenExhausted;
     private boolean redisEnabled = true;
-    private int database;
 }

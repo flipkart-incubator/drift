@@ -8,14 +8,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.exception.mapper.ApiExceptionMapper;
-import com.flipkart.drift.api.filters.IdempotencyFilter;
 import com.flipkart.drift.api.filters.RequestFilter;
 import com.flipkart.drift.api.filters.ResponseFilter;
 import com.flipkart.drift.api.resources.WorkflowResource;
 import com.flipkart.drift.api.resources.NodeDefinitionResource;
 import com.flipkart.drift.api.resources.WorkflowDefinitionResource;
 import com.flipkart.drift.api.module.WorkflowClientModule;
-import com.flipkart.drift.persistence.dao.ConnectionType;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.netflix.config.*;
@@ -59,7 +57,6 @@ public class DriftApplication extends Application<DriftConfiguration> {
 
     @Override
     public void run(DriftConfiguration configuration, Environment environment) {
-        ConnectionType.init(configuration.getHbaseNamespaceConfig());
         // Initialize DynamicPropertyFactory with configuration source
         ConcurrentCompositeConfiguration compositeConfiguration = getConcurrentCompositeConfiguration(configuration);
         DynamicPropertyFactory.initWithConfigurationSource(compositeConfiguration);
@@ -69,7 +66,6 @@ public class DriftApplication extends Application<DriftConfiguration> {
         environment.jersey().register(injector.getInstance(NodeDefinitionResource.class));
         environment.jersey().register(injector.getInstance(WorkflowDefinitionResource.class));
         environment.jersey().register(injector.getInstance(RequestFilter.class));
-        environment.jersey().register(injector.getInstance(IdempotencyFilter.class));
         environment.jersey().register(injector.getInstance(ResponseFilter.class));
         environment.jersey().register(injector.getInstance(ApiExceptionMapper.class));
         final JmxReporter reporter = JmxReporter.forRegistry(metricRegistry).build();

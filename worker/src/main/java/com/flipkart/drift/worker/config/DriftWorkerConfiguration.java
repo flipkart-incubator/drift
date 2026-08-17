@@ -2,7 +2,6 @@ package com.flipkart.drift.worker.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.flipkart.drift.persistence.bootstrap.CacheMaxEntriesConfig;
-import com.flipkart.drift.persistence.bootstrap.HbaseNamespaceConfig;
 import com.flipkart.drift.persistence.bootstrap.StaticCacheRefreshConfig;
 import io.dropwizard.Configuration;
 import lombok.Getter;
@@ -22,8 +21,6 @@ public class DriftWorkerConfiguration extends Configuration {
     private StaticCacheRefreshConfig staticCacheRefreshConfig;
     @NotNull
     private CacheMaxEntriesConfig cacheMaxEntriesConfig;
-    
-    private HbaseNamespaceConfig hbaseNamespaceConfig;
     @NotNull
     private String hbasePropertiesPath;
     @NotNull
@@ -49,8 +46,6 @@ public class DriftWorkerConfiguration extends Configuration {
     @NotNull
     private String authPropertiesPath;
 
-    //Optional : only required when a real (non-NoOp) ABTestingProvider is wired in via SPI
+    @NotNull
     private String abPropertiesPath;
-
-    private ActivityDefaultsConfig activityDefaults = new ActivityDefaultsConfig();
 }

@@ -2,7 +2,6 @@ package com.flipkart.drift.worker.Utility;
 
 import com.flipkart.drift.sdk.spi.ab.ABTestingProvider;
 import com.flipkart.drift.sdk.spi.ab.ABTestingProviderFactory;
-import com.flipkart.drift.sdk.spi.ab.NoOpABTestingProvider;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import lombok.Getter;
@@ -17,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @Singleton
 public class ABServiceInitializer {
     
-    private volatile ABTestingProvider abTestingProvider;
+    private final ABTestingProvider abTestingProvider;
     
     @Getter
     private volatile boolean initialized = false;
@@ -45,21 +44,13 @@ public class ABServiceInitializer {
                 log.info("A/B Testing provider initialized successfully: {}", 
                         abTestingProvider.getClass().getSimpleName());
             } else {
-                log.error("A/B Testing provider initialization failed: falling back to NoOpABTestingProvider");
-                disableABTesting();
+                throw new RuntimeException("A/B Testing provider initialization failed");
             }
             
         } catch (Exception e) {
-            log.error("Failed to initialize A/B Testing provider: {}, Falling back to NoOpABTestingProvider", e.getMessage(), e);
-            disableABTesting();
+            log.error("Failed to initialize A/B Testing provider: {}", e.getMessage(), e);
+            throw new RuntimeException("A/B Testing provider initialization failed", e);
         }
-    }
-
-    private void disableABTesting() {
-        NoOpABTestingProvider noOpABTestingProvider = new NoOpABTestingProvider();
-        noOpABTestingProvider.init();
-        this.abTestingProvider = noOpABTestingProvider;
-        this.initialized = true;
     }
     
     /**

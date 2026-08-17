@@ -174,41 +174,6 @@ public enum WorkflowStatus {
 }
 ```
 
-#### 2.1.1 Business-Key Idempotency (`POST /v3/workflow/start` only)
-
-Applies **only** to `POST /v3/workflow/start`; every other endpoint in this document is
-unaffected. Introduced to let callers safely retry a start request without producing a
-duplicate workflow execution or terminating an in-flight one.
-
-**Request headers**
-
-| Header | Required | Description |
-|--------|----------|-------------|
-| `X-Drift-Idempotency-Key` | No (see back-compat note below) | Caller-supplied business key, `1-256` chars, charset `[A-Za-z0-9_\-:.]`. Drift derives the Temporal `workflowId` as `WF-{tenant}-{clientId}-{sha256(tenant NUL clientId NUL rawKey)}`; all three components are bound into the hash so different tenant/clientId splits with the same concatenated prefix never collide; repeating the same key + tenant + clientId always resolves to the same workflow, never starting a second execution. |
-| `X-Request-Id` | No | Accepted as an alias for `X-Drift-Idempotency-Key`, but only if the primary header is absent. Supplying both with **different** values is an error (see below). |
-
-Validation errors return `400 Bad Request` with one of the following `errorCode` values in
-the standard error body:
-
-| `errorCode` | Cause |
-|-------------|-------|
-| `IDEMPOTENCY_KEY_MISSING` | No idempotency header supplied and the server is configured with `optional: false` (not the default). |
-| `IDEMPOTENCY_KEY_AMBIGUOUS` | More than one configured header present with conflicting values. |
-| `IDEMPOTENCY_KEY_MALFORMED` | Header value does not match `[A-Za-z0-9_\-:.]{1,256}`. |
-
-**Response headers**
-
-| Header | When present | Meaning |
-|--------|---------------|---------|
-| `X-Drift-Workflow-Id` | Whenever the request resolved to a business-key-derived `workflowId` (i.e., the idempotency header was supplied and valid) | The Temporal `workflowId` backing this request — the same value on every retry under the same key/tenant/clientId. |
-| `X-Drift-Idempotent-Replay` | Only when the value is literally `true`, and only when the resolved `workflowId` already had a running/completed Temporal execution (i.e., this request was a duplicate of an earlier one) | Signals the caller got back an existing execution's state rather than triggering a new one. **Not** a cache-hit indicator — this deployment has no cache; it means "resolved via a pre-existing Temporal execution." Omitted entirely (not `false`) on a genuine first/fresh start, and omitted entirely for legacy requests without the idempotency header. |
-
-**Back-compat note (default behavior, no header supplied):** `optional: true` is the
-default server configuration, so existing callers that omit `X-Drift-Idempotency-Key`
-entirely are completely unaffected — Drift falls through to the legacy path (`workflowId`
-either taken from the request body if explicitly set, or auto-generated), and neither of
-the response headers above is added.
-
 ### 2.2 Resume Workflow
 
 **Endpoint**: `PUT /v3/workflow/resume/{workflowId}`

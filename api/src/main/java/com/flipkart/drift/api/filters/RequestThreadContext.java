@@ -12,9 +12,6 @@ public class RequestThreadContext {
     private Boolean perfFlag;
     private String tenant;
     private String username;
-    private String resolvedWorkflowId;
-    private String idempotencyKey;
-    private boolean resolvedFromExistingWorkflow;
 
     public static RequestThreadContext get() {
         return threadLocal.get();
@@ -29,9 +26,6 @@ public class RequestThreadContext {
         tenant = null;
         perfFlag = null;
         username = null;
-        resolvedWorkflowId = null;
-        idempotencyKey = null;
-        resolvedFromExistingWorkflow = false;
     }
 
     public Map<String, String> getLegacyThreadContext() {
@@ -40,7 +34,6 @@ public class RequestThreadContext {
         threadContext.put("userName", username);
         threadContext.put("clientId", clientId);
         threadContext.put("perfFlag", String.valueOf(perfFlag));
-        threadContext.put("idempotencyKey", idempotencyKey);
         return threadContext;
     }
 }
