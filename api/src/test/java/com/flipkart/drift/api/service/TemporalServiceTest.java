@@ -4,9 +4,10 @@ import com.codahale.metrics.MetricRegistry;
 import com.flipkart.drift.api.config.DriftConfiguration;
 import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.api.filters.RequestThreadContext;
+import com.flipkart.drift.api.service.builder.WorkflowDefinitionService;
 import com.flipkart.drift.api.service.idempotency.IdempotencyMetrics;
-import com.flipkart.drift.api.service.utils.Utility;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
+import com.flipkart.drift.api.service.utils.Utility;
 import com.flipkart.drift.sdk.model.request.WorkflowStartRequest;
 import com.flipkart.drift.sdk.model.response.WorkflowResponse;
 import com.flipkart.drift.workflows.GenericWorkflow;
@@ -53,7 +54,8 @@ class TemporalServiceTest {
         Utility utility = new Utility();
         IdempotencyMetrics idempotencyMetrics = new IdempotencyMetrics(new MetricRegistry());
 
-        temporalService = new TemporalService(redisPubSubService, configuration, utility, idempotencyMetrics);
+        temporalService = new TemporalService(redisPubSubService, configuration, utility, idempotencyMetrics,
+                mock(WorkflowDefinitionService.class));
 
         mockClient = mock(WorkflowClient.class);
         Field clientField = TemporalService.class.getDeclaredField("client");
