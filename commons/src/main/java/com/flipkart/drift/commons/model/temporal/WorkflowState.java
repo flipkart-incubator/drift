@@ -61,4 +61,9 @@ public class WorkflowState implements Serializable {
 
     /** BRANCH instanceName → selected next node. */
     private Map<String, String> branchSelections = new HashMap<>();
+    // Resolved workflow DSL identity. Used to execute disconnected nodes when issueDetail is absent.
+    private String workflowDslId;
+    private String workflowVersion;
+    /** Workflow-level execution mode set when the workflow was started; null for legacy workflows (treated as SYNC). */
+    private WorkflowExecutionMode workflowExecutionMode;
 }

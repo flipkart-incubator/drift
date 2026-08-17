@@ -12,13 +12,14 @@ redisConfiguration:
   master: ${REDIS_MASTER}
   sentinels: ${REDIS_SENTINELS}
   prefix: ${REDIS_PREFIX}
+  database: ${REDIS_DATABASE:-0}
   maxTotal: 50
   maxWaitMillis: 100
   maxIdle: 25
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
-  redisEnabled: false  # set to false in environments without Redis; requires ASYNC executionMode
+  redisEnabled: ${REDIS_ENABLED:true}  # override via env var; defaults to true for backward compatibility
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
@@ -37,11 +38,15 @@ lookupPropertiesPath: ${ENUM_STORE_BUCKET}
 
 hbasePropertiesPath: ${HBASE_CONFIG_BUCKET}
 
-abPropertiesPath: ${AB_CONFIG_BUCKET}
-
 authPropertiesPath: ${AUTH_PATH}
 
 workflowPropertiesPath: ${WORKFLOW_PROPERTY_PATH}
+
+hbaseNamespaceConfig:
+  hot: ${HBASE_NAMESPACE_HOT:-ims_hot}
+  cold: ${HBASE_NAMESPACE_COLD:-ims_cold}
+  archival: ${HBASE_NAMESPACE_ARCHIVAL:-ims_archive}
+  audit: ${HBASE_NAMESPACE_AUDIT:-ims_audit}
 
 prometheusConfig:
   port: 9090
