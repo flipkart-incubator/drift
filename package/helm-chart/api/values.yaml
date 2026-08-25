@@ -42,7 +42,7 @@ env:
   REDIS_ENABLED: ""
   # DNS name of the worker headless service for cache invalidation fanout (used when REDIS_ENABLED=false).
   # Format: <worker-release-name>-headless.<namespace>.svc.cluster.local
-  WORKER_HEADLESS_HOST: "drift-worker-headless.drift.svc.cluster.local"
+  WORKER_HEADLESS_HOST: ""
   # Admin port of the worker pods (must match the worker's adminConnectors port)
   WORKER_ADMIN_PORT: ""
 
