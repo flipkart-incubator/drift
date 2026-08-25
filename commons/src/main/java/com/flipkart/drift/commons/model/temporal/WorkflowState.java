@@ -33,7 +33,9 @@ public class WorkflowState implements Serializable {
     private View view;
     private String currentNodeRef;
     private IssueDetail issueDetail;
-
+    // Resolved workflow DSL identity. Used to execute disconnected nodes when issueDetail is absent.
+    private String workflowDslId;
+    private String workflowVersion;
     /** Workflow-level execution mode set when the workflow was started; null for legacy workflows (treated as SYNC). */
     private WorkflowExecutionMode workflowExecutionMode;
 

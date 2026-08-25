@@ -25,8 +25,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,17 +42,17 @@ public class ParallelWorkflowEngine {
     private final WorkflowState workflowState;
     private final WorkflowNodeExecutor nodeExecutor;
 
-    private Map<String, Set<String>> pendingDeps = new HashMap<>();
-    private Map<String, List<String>> successors = new HashMap<>();
-    private Set<String> terminalNodes = new HashSet<>();
-    private Set<String> inFlight = new HashSet<>();
-    private Set<String> completed = new HashSet<>();
-    private Set<String> failedNodes = new HashSet<>();
-    private Set<String> skipped = new HashSet<>();
-    private Map<String, String> branchSelections = new HashMap<>();
-    private Map<String, List<String>> branchTargetGroups = new HashMap<>();
-    private Set<String> completedTerminals = new HashSet<>();
-    private Map<String, Boolean> pausedNodes = new HashMap<>();
+    private Map<String, Set<String>> pendingDeps = new LinkedHashMap<>();
+    private Map<String, List<String>> successors = new LinkedHashMap<>();
+    private Set<String> terminalNodes = new LinkedHashSet<>();
+    private Set<String> inFlight = new LinkedHashSet<>();
+    private Set<String> completed = new LinkedHashSet<>();
+    private Set<String> failedNodes = new LinkedHashSet<>();
+    private Set<String> skipped = new LinkedHashSet<>();
+    private Map<String, String> branchSelections = new LinkedHashMap<>();
+    private Map<String, List<String>> branchTargetGroups = new LinkedHashMap<>();
+    private Set<String> completedTerminals = new LinkedHashSet<>();
+    private Map<String, Boolean> pausedNodes = new LinkedHashMap<>();
 
     private Workflow workflow;
     private WorkflowStartRequest startRequest;
@@ -70,7 +71,7 @@ public class ParallelWorkflowEngine {
         workflowState.setStatus(WorkflowStatus.RUNNING);
         workflowState.setSkippedNodes(skipped);
         workflowState.setBranchSelections(branchSelections);
-        workflowState.setNodeStates(new HashMap<>());
+        workflowState.setNodeStates(new LinkedHashMap<>());
 
         dispatchReadyNodes();
 
@@ -92,7 +93,7 @@ public class ParallelWorkflowEngine {
                 continue;
             }
             List<String> deps = node.getDependsOn() != null ? node.getDependsOn() : Collections.emptyList();
-            pendingDeps.put(name, new HashSet<>(deps));
+            pendingDeps.put(name, new LinkedHashSet<>(deps));
             for (String dep : deps) {
                 successors.computeIfAbsent(dep, k -> new ArrayList<>()).add(name);
                 WorkflowNode depNode = states.get(dep);
@@ -254,7 +255,8 @@ public class ParallelWorkflowEngine {
             WorkflowNode taggedFallbackNode = new WorkflowNode(
                     fallbackNode.getInstanceName(), fallbackNode.getResourceId(), fallbackNode.getResourceVersion(),
                     fallbackNode.getType(), fallbackNode.getParameters(), fallbackNode.getContextOverrideKey(),
-                    fallbackNode.getNextNode(), fallbackNode.isEnd(), fallbackNode.getNodeDefinition(),
+                    fallbackNode.getNextNode(), fallbackNode.isEnd(), fallbackNode.getTimeoutSeconds(),
+                    fallbackNode.getRetryConfig(), fallbackNode.getNodeDefinition(),
                     fallbackNode.getWaitConfig(), List.of(failedNodeId));
             nodeExecutor.executeNodeWithoutStatusUpdate(taggedFallbackNode, threadContext);
         } catch (Exception e) {
@@ -313,10 +315,36 @@ public class ParallelWorkflowEngine {
                     deps.remove(nodeName);
                     return deps;
                 });
-                queue.add(succ);
+                if (shouldSkipAsUnreachable(succ)) {
+                    queue.add(succ);
+                }
             }
         }
         workflowState.setSkippedNodes(skipped);
+    }
+
+    /**
+     * A fan-in successor is skipped only when every predecessor is already skipped, completed, or failed.
+     * Do not skip while any predecessor is still active (e.g. parallel branch still running).
+     */
+    private boolean shouldSkipAsUnreachable(String nodeName) {
+        if (skipped.contains(nodeName) || completed.contains(nodeName)) {
+            return false;
+        }
+        WorkflowNode node = workflow.getStates().get(nodeName);
+        if (node == null) {
+            return true;
+        }
+        List<String> allDeps = node.getDependsOn() != null ? node.getDependsOn() : Collections.emptyList();
+        if (allDeps.isEmpty()) {
+            return true;
+        }
+        for (String dep : allDeps) {
+            if (!skipped.contains(dep) && !completed.contains(dep) && !failedNodes.contains(dep)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private WaitKind resolveWaitKind(WorkflowNode node, ActivityThinResponse response) {

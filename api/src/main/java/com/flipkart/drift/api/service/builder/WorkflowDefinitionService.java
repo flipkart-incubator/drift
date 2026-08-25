@@ -56,8 +56,7 @@ public class WorkflowDefinitionService {
     }
 
     public Workflow addWorkflow(Workflow workflowData) {
-        enrichNodeDefinitionsForValidation(workflowData);
-        workflowData.validateWFFields();
+        validateWorkflowBeforePublish(workflowData);
         String workflowKey = generateRowKey(workflowData.getId(), Version.SNAPSHOT);
 
         checkWorkflowExistence(workflowKey);
@@ -88,6 +87,12 @@ public class WorkflowDefinitionService {
         if (workflowData.getPostWorkflowCompletionNodes() != null) {
             existingWorkflow.setPostWorkflowCompletionNodes(workflowData.getPostWorkflowCompletionNodes());
         }
+        if (workflowData.getExecutionType() != null) {
+            existingWorkflow.setExecutionType(workflowData.getExecutionType());
+        }
+        if (workflowData.getWorkflowExecutionMode() != null) {
+            existingWorkflow.setWorkflowExecutionMode(workflowData.getWorkflowExecutionMode());
+        }
 
         // Merge state map data individually
         if (workflowData.getStates() != null) {
@@ -98,6 +103,7 @@ public class WorkflowDefinitionService {
             }
         }
 
+        validateWorkflowBeforePublish(existingWorkflow);
         updateWorkflowInHBase(workflowKey, existingWorkflow);
         return existingWorkflow;
     }
@@ -226,6 +232,7 @@ public class WorkflowDefinitionService {
             String snapshotKey = generateRowKey(id, Version.SNAPSHOT);
             WorkflowHB snapshotWorkflowHB = getWorkflowHB(snapshotKey);
             Workflow workflow = snapshotWorkflowHB.getWorkflowData();
+            validateWorkflowBeforePublish(workflow);
 
             String latestKey = generateRowKey(id, Version.LATEST);
             WorkflowHB latestWorkflowHB = workflowDefinitionDao.get(latestKey, ConnectionType.HOT);
@@ -328,6 +335,11 @@ public class WorkflowDefinitionService {
         } catch (IOException e) {
             throw new ApiException("Error while fetching workflow from WorkflowHB in HBase", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
+    }
+
+    private void validateWorkflowBeforePublish(Workflow workflow) {
+        enrichNodeDefinitionsForValidation(workflow);
+        workflow.validateWFFields();
     }
 
     private void enrichNodeDefinitionsForValidation(Workflow workflow) {
