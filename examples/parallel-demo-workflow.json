@@ -1,0 +1,62 @@
+{
+  "id": "parallel-demo-workflow",
+  "comment": "PARALLEL: path1 (a->b) and path2 (c->d) run concurrently, fan-in to success",
+  "executionType": "PARALLEL",
+  "workflowExecutionMode": "ASYNC",
+  "startNode": "path1-a",
+  "states": {
+    "path1-a": {
+      "instanceName": "path1-a",
+      "resourceId": "parallel-demo-a",
+      "resourceVersion": "LATEST",
+      "type": "NODE",
+      "parameters": {},
+      "dependsOn": [],
+      "end": false
+    },
+    "path1-b": {
+      "instanceName": "path1-b",
+      "resourceId": "parallel-demo-b",
+      "resourceVersion": "LATEST",
+      "type": "NODE",
+      "parameters": {},
+      "dependsOn": [
+        "path1-a"
+      ],
+      "end": false
+    },
+    "path2-c": {
+      "instanceName": "path2-c",
+      "resourceId": "parallel-demo-c",
+      "resourceVersion": "LATEST",
+      "type": "NODE",
+      "parameters": {},
+      "dependsOn": [],
+      "end": false
+    },
+    "path2-d": {
+      "instanceName": "path2-d",
+      "resourceId": "parallel-demo-d",
+      "resourceVersion": "LATEST",
+      "type": "NODE",
+      "parameters": {},
+      "dependsOn": [
+        "path2-c"
+      ],
+      "end": false
+    },
+    "step-success": {
+      "instanceName": "step-success",
+      "resourceId": "demo-success",
+      "resourceVersion": "LATEST",
+      "type": "NODE",
+      "parameters": {},
+      "dependsOn": [
+        "path1-b",
+        "path2-d"
+      ],
+      "end": true
+    }
+  },
+  "postWorkflowCompletionNodes": []
+}

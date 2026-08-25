@@ -50,8 +50,16 @@ public class WorkflowContextManagerActivityImpl implements WorkflowContextManage
         }
         ObjectNode contextNode = workflowContextHB.getContext();
         String viewResponseKey = currentNodeRef + Constants.VIEW_RESPONSE_SUFFIX;
-        JsonNode viewResponse = ObjectMapperUtil.INSTANCE.getJsonNode(workflowResumeRequest.getViewResponse());
-        contextNode.set(viewResponseKey, viewResponse);
+        if (workflowResumeRequest.getViewResponse() != null) {
+            JsonNode viewResponse = ObjectMapperUtil.INSTANCE.getJsonNode(workflowResumeRequest.getViewResponse());
+            contextNode.set(viewResponseKey, viewResponse);
+        }
+        // For N-event waits: write params keyed by eventType so downstream nodes can
+        // reference individual event payloads via {{nodeRef_ORDER_DELIVERED_payload.field}}.
+        if (workflowResumeRequest.getEventType() != null && workflowResumeRequest.getParams() != null) {
+            String eventPayloadKey = currentNodeRef + "_" + workflowResumeRequest.getEventType() + "_payload";
+            contextNode.set(eventPayloadKey, ObjectMapperUtil.INSTANCE.getObjectNode(workflowResumeRequest.getParams()));
+        }
         ObjectNode globalParams = generateGlobalParams(
                 workflowResumeRequest.getThreadContext(),
                 workflowResumeRequest.getParams()

@@ -52,8 +52,12 @@ public class WorkerModule extends AbstractModule {
     }
 
     private JedisSentinelPool provideJedisPool() {
+        final RedisConfiguration redisConfiguration = driftWorkerConfiguration.getRedisConfiguration();
+        if (!redisConfiguration.isRedisEnabled()) {
+            log.info("Redis is disabled (redisEnabled=false), skipping JedisSentinelPool creation");
+            return null;
+        }
         try {
-            final RedisConfiguration redisConfiguration = driftWorkerConfiguration.getRedisConfiguration();
             String hosts = redisConfiguration.getSentinels();
             StringTokenizer strTkn = new StringTokenizer(hosts, ",");
             List<String> hostList = new ArrayList<>();
@@ -167,7 +171,11 @@ public class WorkerModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(JedisPoolAbstract.class).toInstance(this.jedisSentinelPool);
+        if (this.jedisSentinelPool != null) {
+            bind(JedisPoolAbstract.class).toInstance(this.jedisSentinelPool);
+        }
+        // When jedisSentinelPool is null (Redis disabled), JedisPoolAbstract is unbound.
+        // Classes using @Inject(optional=true) field injection will receive null gracefully.
         bind(DriftWorkerConfiguration.class).toInstance(driftWorkerConfiguration);
         bind(StringResolver.class).to(MustacheStringResolver.class);
         bind(Connection.class).annotatedWith(Names.named(ConnectionType.HOT.name())).toProvider(ConnectionProviderWorker.class).asEagerSingleton();

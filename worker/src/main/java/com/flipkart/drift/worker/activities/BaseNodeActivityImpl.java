@@ -7,7 +7,11 @@ import com.flipkart.drift.worker.model.activity.ActivityThinResponse;
 import com.flipkart.drift.sdk.model.request.WorkflowUtilityRequest;
 import com.flipkart.drift.sdk.model.response.View;
 import com.flipkart.drift.commons.model.enums.NodeType;
+import com.flipkart.drift.commons.model.enums.WaitType;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
+import com.flipkart.drift.commons.model.waitConfig.OnEventConfig;
+import com.flipkart.drift.commons.model.waitConfig.WaitConfig;
+import com.flipkart.drift.worker.executor.WaitTypeExecutor.OnEventExecutor;
 import com.flipkart.drift.worker.model.workflow.WorkflowContext;
 import com.flipkart.drift.persistence.entity.WorkflowContextHB;
 import com.flipkart.drift.commons.model.node.NodeDefinition;
@@ -15,10 +19,12 @@ import com.flipkart.drift.worker.model.activity.ActivityRequest;
 import com.flipkart.drift.worker.model.activity.ActivityResponse;
 import com.flipkart.drift.worker.service.WorkflowContextHBService;
 import com.flipkart.drift.commons.utils.ObjectMapperUtil;
+import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import io.temporal.activity.Activity;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -53,6 +59,7 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
                 .nextNode(response.getNextNode())
                 .disposition(disposition)
                 .view(currentView)
+                .resolvedExpectedEventTypes(response.getResolvedExpectedEventTypes())
                 .build();
     }
 
@@ -76,11 +83,30 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
         activityRequest.setIsTerminal(activityThinRequest.getWorkflowNode().isEnd());
         activityRequest.setWorkflowId(workflowId);
         activityRequest.setThreadContext(activityThinRequest.getThreadContext());
-        updateContextWithNodeParameters(context.getContext(), activityThinRequest.getWorkflowNode().getParameters());
+        updateContextWithNodeParameters(context.getContext(), activityThinRequest.getWorkflowNode().getParameters(),
+                activityThinRequest.getWorkflowNode(), activityThinRequest.isParallelExecution());
         activityRequest.setContext(context.getContext());
         activityRequest.setNodeDefinition(activityThinRequest.getNodeDefinition());
+        activityRequest.setInstanceName(activityThinRequest.getWorkflowNode().getInstanceName());
         // Step 2: Execute the actual logic
         ActivityResponse response = executeNode(activityRequest);
+
+        // Step 2a: If the WorkflowNode has an inline waitConfig with expectedEventTypesVar,
+        // resolve the context variable here while we still have the HBase context.
+        resolveInlineWaitConfigVar(activityThinRequest.getWorkflowNode(), activityRequest, response);
+
+        // Step 2b: If node is marked as terminal (end=true) and the node's own status is still
+        // transitional (RUNNING), override to COMPLETED so all node types correctly terminate the workflow.
+        // FAILED, COMPLETED, ASYNC_COMPLETE, and WAITING are intentional and preserved —
+        // WAITING must not be overridden so WaitNodes with end=true still park for an event.
+        if (Boolean.TRUE.equals(activityRequest.getIsTerminal())
+                && response.getWorkflowStatus() != WorkflowStatus.FAILED
+                && response.getWorkflowStatus() != WorkflowStatus.COMPLETED
+                && response.getWorkflowStatus() != WorkflowStatus.ASYNC_COMPLETE
+                && response.getWorkflowStatus() != WorkflowStatus.WAITING) {
+            response.setWorkflowStatus(WorkflowStatus.COMPLETED);
+        }
+
         // Step 3: Persist updated context
         workflowContextHBService.updateEntity(WorkflowContext.builder()
                 .workflowId(workflowId)
@@ -91,9 +117,14 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
     }
 
     private void updateContextWithNodeParameters(ObjectNode context,
-                                                 Map<String, String> parameters) {
+                                                 Map<String, String> parameters,
+                                                 WorkflowNode workflowNode,
+                                                 boolean parallelExecution) {
         ObjectNode nodeParameters = NodeParameterEvaluator.evaluateNodeParameters(context, parameters);
-        context.set("nodeParameters", nodeParameters);
+        String key = parallelExecution
+                ? workflowNode.getInstanceName() + "_nodeParameters"
+                : "nodeParameters";
+        context.set(key, nodeParameters);
     }
 
     private String generateNodeIdentifier(WorkflowNode currentNode) {
@@ -101,5 +132,21 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
             return currentNode.getContextOverrideKey();
         }
         return currentNode.getInstanceName();
+    }
+
+    private void resolveInlineWaitConfigVar(WorkflowNode workflowNode, ActivityRequest<T> activityRequest, ActivityResponse response) {
+        WaitConfig inlineWait = workflowNode.getWaitConfig();
+        if (inlineWait == null || WaitType.ON_EVENT != inlineWait.getWaitType()) {
+            return;
+        }
+        OnEventConfig config = (OnEventConfig) inlineWait;
+        if (config.getExpectedEventTypesVar() == null || config.getExpectedEventTypesVar().isEmpty()) {
+            return;
+        }
+        List<String> resolved = OnEventExecutor.resolveFromContext(
+                config.getExpectedEventTypesVar(), activityRequest.getContext(), activityRequest.getWorkflowId());
+        log.info("WfId: {} inline waitConfig var '{}' resolved {} event types",
+                activityRequest.getWorkflowId(), config.getExpectedEventTypesVar(), resolved.size());
+        response.setResolvedExpectedEventTypes(resolved);
     }
 }

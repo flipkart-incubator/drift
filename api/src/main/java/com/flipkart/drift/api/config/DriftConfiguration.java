@@ -8,6 +8,7 @@ import io.dropwizard.Configuration;
 import lombok.Getter;
 import lombok.Setter;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 @Getter
@@ -16,6 +17,8 @@ import javax.validation.constraints.NotNull;
 public class DriftConfiguration extends Configuration {
     @NotNull
     private RedisConfiguration redisConfiguration;
+    @Valid
+    private IdempotencyConfig idempotencyConfig;
     @NotNull
     private ExecutorServiceConfig cacheRefreshExecutorServiceConfig;
     @NotNull
@@ -34,5 +37,8 @@ public class DriftConfiguration extends Configuration {
     private String hadoopUserName;
     @NotNull
     private String hadoopLoginUser;
+
+    /** Config for DNS-fanout cache invalidation to worker pods (used when redisEnabled=false). */
+    private WorkerInvalidationConfig workerInvalidationConfig;
 }
 

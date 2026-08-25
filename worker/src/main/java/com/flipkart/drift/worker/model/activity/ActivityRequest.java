@@ -14,6 +14,7 @@ import java.util.Map;
 public class ActivityRequest<T extends NodeDefinition> {
     private String workflowId;
     private T nodeDefinition;
+    private String instanceName;
     private JsonNode context;
     private Map<String, Object> nodeParameters;
     private Boolean isTerminal;

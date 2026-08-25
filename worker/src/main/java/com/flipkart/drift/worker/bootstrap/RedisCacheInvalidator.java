@@ -1,8 +1,6 @@
 package com.flipkart.drift.worker.bootstrap;
 
-import com.flipkart.drift.persistence.cache.EntityVersionedCache;
-import com.flipkart.drift.persistence.cache.NodeDefinitionCache;
-import com.flipkart.drift.persistence.cache.WorkflowCache;
+import com.flipkart.drift.worker.config.DriftWorkerConfiguration;
 import io.dropwizard.lifecycle.Managed;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
@@ -19,22 +17,20 @@ import static com.flipkart.drift.commons.utils.Constants.Workflow.DSL_UPDATE_CHA
 
 @Slf4j
 public class RedisCacheInvalidator implements Managed {
-    public static final String NODE_EVENT_ID = "NODE";
-    public static final String WORKFLOW_EVENT_ID = "WORKFLOW";
 
-    private final NodeDefinitionCache nodeDefinitionCache;
-    private final WorkflowCache workflowCache;
-    private final JedisPoolAbstract jedisPool;
+    private final DslCacheManager dslCacheManager;
+    private final boolean redisEnabled;
     private final ExecutorService executorService;
-    private volatile boolean running = false;  
-    
+    private volatile boolean running = false;
+
+    @Inject(optional = true)
+    private JedisPoolAbstract jedisPool;
+
     @Inject
-    public RedisCacheInvalidator(NodeDefinitionCache nodeDefinitionCache,
-                                 WorkflowCache workflowCache,
-                                 JedisPoolAbstract jedisPool) {
-        this.nodeDefinitionCache = nodeDefinitionCache;
-        this.workflowCache = workflowCache;
-        this.jedisPool = jedisPool;
+    public RedisCacheInvalidator(DslCacheManager dslCacheManager,
+                                 DriftWorkerConfiguration driftWorkerConfiguration) {
+        this.dslCacheManager = dslCacheManager;
+        this.redisEnabled = driftWorkerConfiguration.getRedisConfiguration().isRedisEnabled();
         this.executorService = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder()
                         .setNameFormat("redis-subscriber-%d")
@@ -45,6 +41,14 @@ public class RedisCacheInvalidator implements Managed {
 
     @Override
     public void start() throws Exception {
+        if (!redisEnabled) {
+            log.info("Redis is disabled (redisEnabled=false), skipping cache invalidation subscription");
+            return;
+        }
+        if (jedisPool == null) {
+            log.warn("Redis pool is null despite redisEnabled=true, skipping cache invalidation subscription");
+            return;
+        }
         try {
             log.info("Starting Redis cache invalidation listener");
             running = true;
@@ -57,20 +61,13 @@ public class RedisCacheInvalidator implements Managed {
                             public void onMessage(String channel, String message) {
                                 try {
                                     log.info("Received cache invalidation message: {}", message);
-                                /*
-                                    message is of format : NODE <rowKey> or NODE ALL or WORKFLOW <rowKey> or WORKFLOW ALL
-                                */
+                                    // message format: NODE <rowKey> | NODE ALL | WORKFLOW <rowKey> | WORKFLOW ALL
                                     String[] parts = message.split(" ", 2);
-                                    EntityVersionedCache<?> cache = getCache(parts[0]);
-                                    if (cache != null) {
-                                        if (parts[1].equals("ALL")) {
-                                            cache.invalidateAll();
-                                        } else {
-                                            cache.invalidate(parts[1]);
-                                        }
-                                    } else {
-                                        log.warn("Unknown cache type: {}, ignoring msg {}", parts[0], message);
+                                    if (parts.length < 2) {
+                                        log.warn("Malformed cache invalidation message: {}", message);
+                                        return;
                                     }
+                                    dslCacheManager.invalidate(parts[0], parts[1]);
                                 } catch (Exception e) {
                                     log.error("Error processing cache invalidation message", e);
                                 }
@@ -102,18 +99,6 @@ public class RedisCacheInvalidator implements Managed {
             });
         } catch (Exception e) {
             log.error("Failure starting Redis cache invalidation listener", e);
-        }
-    }
-
-    private EntityVersionedCache<?> getCache(String dslId) {
-        switch (dslId) {
-            case NODE_EVENT_ID:
-                return nodeDefinitionCache;
-            case WORKFLOW_EVENT_ID:
-                return workflowCache;
-            default:
-                log.warn("Unknown cache type: {}", dslId);
-                return null;
         }
     }
 
