@@ -64,8 +64,6 @@ public class WorkflowClientModule extends AbstractModule {
         } catch (Exception e) {
             log.error("Failed to Connected to RedisDao Server {}", e.getMessage(), e);
             return null;
-            // TODO : Clean this up ... Change made so that bootstrap shouldn't be failing on redis failure
-//            throw new RedisStoreException(Response.Status.INTERNAL_SERVER_ERROR, "Unable to init redis config", e.getMessage());
         }
     }
 

@@ -1,7 +1,6 @@
 package com.flipkart.drift.worker.workflows;
 
 import com.flipkart.drift.commons.model.enums.ExecutionMode;
-import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;
 import com.flipkart.drift.commons.model.enums.WaitSemantics;
 import com.flipkart.drift.commons.model.enums.WaitType;
 import com.flipkart.drift.sdk.model.enums.WorkflowExecutionMode;

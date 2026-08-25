@@ -120,6 +120,7 @@ public class TemporalService {
                         .workflowStatus(WorkflowStatus.RUNNING)
                         .build();
             } else {
+                // SYNC mode: block until workflow reaches a terminal state via Redis
                 RedisConfiguration redisConfiguration = driftConfiguration.getRedisConfiguration();
                 if (redisConfiguration != null && !redisConfiguration.isRedisEnabled()) {
                     throw new ApiException(Response.Status.BAD_REQUEST,
@@ -177,8 +178,11 @@ public class TemporalService {
             workflowResumeRequest.setThreadContext(RequestThreadContext.get().getLegacyThreadContext());
             GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowResumeRequest.getWorkflowId());
 
+            // Request-level mode takes priority (external event callers set ASYNC here).
+            // Falls back to the mode persisted when the workflow was started.
             WorkflowState currentState = workflow.getWorkflowState();
-            WorkflowExecutionMode executionMode = resolveResumeExecutionMode(workflowResumeRequest, currentState);
+            WorkflowExecutionMode executionMode = resolveResumeExecutionMode(
+                    workflowResumeRequest, currentState);
 
             if (executionMode == WorkflowExecutionMode.ASYNC) {
                 workflow.resumeWorkflow(workflowResumeRequest);
@@ -206,6 +210,21 @@ public class TemporalService {
         } catch (Exception e) {
             log.error("Unexpected error during workflow resume: {}", e.getMessage(), e);
             throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to resume workflow: " + e.getMessage());
+        }
+    }
+
+    public void unsidelineWorkflow(String workflowId, String nodeId) {
+        try {
+            GenericWorkflow workflow = client.newWorkflowStub(GenericWorkflow.class, workflowId);
+            workflow.unsidelineWorkflow(nodeId);
+        } catch (WorkflowNotFoundException e) {
+            throw new ApiException(Response.Status.NOT_FOUND, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (WorkflowException e) {
+            log.error(WORKFLOW_EXCEPTION, e.getMessage(), e);
+            throw new ApiException(Response.Status.EXPECTATION_FAILED, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error during node unsideline: {}", e.getMessage(), e);
+            throw new ApiException(Response.Status.INTERNAL_SERVER_ERROR, "Failed to unsideline node: " + e.getMessage());
         }
     }
 

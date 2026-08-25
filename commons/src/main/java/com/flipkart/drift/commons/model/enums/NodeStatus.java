@@ -4,5 +4,6 @@ public enum NodeStatus {
     WAITING,
     SCHEDULER_WAITING,
     RUNNING,
-    SKIPPED
+    SKIPPED,
+    PAUSED
 }

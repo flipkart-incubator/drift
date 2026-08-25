@@ -35,7 +35,7 @@ redisConfiguration:
   minIdle: 25
   testOnBorrow: true
   blockWhenExhausted: true
-  redisEnabled: ${REDIS_ENABLED:true}  # override via env var; defaults to true for backward compatibility
+  redisEnabled: ${REDIS_ENABLED:-true}  # override via env var; set false in environments without Redis (requires ASYNC executionMode)
 
 cacheRefreshExecutorServiceConfig:
   minThreads: 1
@@ -71,6 +71,6 @@ hadoopLoginUser: ${HADOOP_LOGIN_USER}
 # InetAddress.getAllByName() resolves to all pod IPs.
 workerInvalidationConfig:
   headlessServiceHost: ${WORKER_HEADLESS_HOST:}
-  adminPort: ${WORKER_ADMIN_PORT:7201}
+  adminPort: ${WORKER_ADMIN_PORT:-7201}
   perPodTimeoutMs: 2000
   enabled: true

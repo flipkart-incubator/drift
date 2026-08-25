@@ -52,6 +52,7 @@ public class ParallelWorkflowEngine {
     private Map<String, String> branchSelections = new LinkedHashMap<>();
     private Map<String, List<String>> branchTargetGroups = new LinkedHashMap<>();
     private Set<String> completedTerminals = new LinkedHashSet<>();
+    private Map<String, Boolean> pausedNodes = new LinkedHashMap<>();
 
     private Workflow workflow;
     private WorkflowStartRequest startRequest;
@@ -82,8 +83,15 @@ public class ParallelWorkflowEngine {
 
     private void initDag(Workflow workflow) {
         Map<String, WorkflowNode> states = workflow.getStates();
+        // defaultFailureNode is a reactive side node run only via runFallbackNode() when
+        // another node pauses for unsideline — it must not be part of the dependency graph,
+        // or (having no dependsOn of its own) it would be dispatched unconditionally at start.
+        String fallbackNodeName = workflow.getDefaultFailureNode();
         for (WorkflowNode node : states.values()) {
             String name = node.getInstanceName();
+            if (name.equals(fallbackNodeName)) {
+                continue;
+            }
             List<String> deps = node.getDependsOn() != null ? node.getDependsOn() : Collections.emptyList();
             pendingDeps.put(name, new LinkedHashSet<>(deps));
             for (String dep : deps) {
@@ -96,6 +104,9 @@ public class ParallelWorkflowEngine {
             }
         }
         for (String name : states.keySet()) {
+            if (name.equals(fallbackNodeName)) {
+                continue;
+            }
             if (!successors.containsKey(name) || successors.get(name).isEmpty()) {
                 terminalNodes.add(name);
             }
@@ -139,56 +150,127 @@ public class ParallelWorkflowEngine {
         WorkflowNode node = workflow.getStates().get(nodeName);
         if (node == null) {
             failedNodes.add(nodeName);
-            return;
-        }
-
-        logger.info("WfId: {} Parallel dispatch node: {}", workflowState.getWorkflowId(), nodeName);
-        ActivityThinResponse response;
-        try {
-            response = nodeExecutor.executeParallelNode(node, threadContext, startRequest);
-        } catch (Exception e) {
-            logger.error("WfId: {} Node {} failed: {}", workflowState.getWorkflowId(), nodeName, e.getMessage());
-            if (node.getNodeDefinition() != null
-                    && node.getNodeDefinition().getType() == NodeType.BRANCH) {
-                pruneAllBranchArms(nodeName);
-            }
-            failedNodes.add(nodeName);
             checkTermination();
             return;
         }
 
-        if (response == null) {
+        while (true) {
+            logger.info("WfId: {} Parallel dispatch node: {}", workflowState.getWorkflowId(), nodeName);
+            ActivityThinResponse response;
+            try {
+                response = nodeExecutor.executeParallelNode(node, threadContext, startRequest);
+            } catch (Exception e) {
+                logger.error("WfId: {} Node {} failed: {}", workflowState.getWorkflowId(), nodeName, e.getMessage());
+                if (!pauseForUnsideline(nodeName, e.getMessage())) {
+                    return;
+                }
+                continue;
+            }
+
+            if (response == null) {
+                completed.add(nodeName);
+                onNodeComplete(nodeName, node, response);
+                return;
+            }
+
+            if (response.getWorkflowStatus() == WorkflowStatus.FAILED) {
+                logger.error("WfId: {} Node {} returned FAILED status", workflowState.getWorkflowId(), nodeName);
+                if (!pauseForUnsideline(nodeName, "Node returned FAILED status")) {
+                    return;
+                }
+                continue;
+            }
+
+            if (node.getNodeDefinition() != null && node.getNodeDefinition().getType() == NodeType.BRANCH) {
+                if (response.getNextNode() == null) {
+                    logger.error("WfId: {} BRANCH node {} did not resolve a next node",
+                            workflowState.getWorkflowId(), nodeName);
+                    if (!pauseForUnsideline(nodeName, "BRANCH node did not resolve a next node")) {
+                        return;
+                    }
+                    continue;
+                }
+                handleBranchCompletion(nodeName, response);
+                return;
+            }
+
+            WaitKind waitKind = resolveWaitKind(node, response);
+            if (waitKind == WaitKind.ON_EVENT) {
+                parkForOnEvent(node, response);
+                return;
+            }
+            if (waitKind == WaitKind.SCHEDULER_WAIT) {
+                parkForScheduler(node, response);
+                return;
+            }
+
             completed.add(nodeName);
             onNodeComplete(nodeName, node, response);
             return;
         }
+    }
 
-        if (response.getWorkflowStatus() == WorkflowStatus.FAILED) {
-            if (node.getNodeDefinition() != null && node.getNodeDefinition().getType() == NodeType.BRANCH) {
-                pruneAllBranchArms(nodeName);
-            }
-            failedNodes.add(nodeName);
-            checkTermination();
-            return;
+    /**
+     * Runs the fallback node (if configured), parks the node's coroutine in PAUSED state,
+     * and blocks until an unsideline signal for this node or a workflow-terminal event.
+     * @return true if the node should be retried, false if the caller should give up (workflow going terminal).
+     */
+    private boolean pauseForUnsideline(String nodeName, String errorMessage) {
+        if (isGlobalTerminal()) {
+            return false;
+        }
+        runFallbackNode(nodeName);
+
+        workflowState.setErrorMessage("Error message: " + errorMessage);
+        workflowState.getNodeStates().put(nodeName, new NodeState(nodeName, NodeStatus.PAUSED, null, null));
+
+        logger.info("WfId: {} Node: {} paused — awaiting unsideline signal", workflowState.getWorkflowId(), nodeName);
+        pausedNodes.putIfAbsent(nodeName, false);
+        io.temporal.workflow.Workflow.await(() ->
+                Boolean.TRUE.equals(pausedNodes.get(nodeName)) || isGlobalTerminal());
+
+        workflowState.getNodeStates().remove(nodeName);
+        if (isGlobalTerminal()) {
+            return false;
         }
 
-        if (node.getNodeDefinition() != null && node.getNodeDefinition().getType() == NodeType.BRANCH) {
-            handleBranchCompletion(nodeName, response);
-            return;
-        }
+        pausedNodes.remove(nodeName);
+        workflowState.setErrorMessage(null);
+        logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeName);
+        return true;
+    }
 
-        WaitKind waitKind = resolveWaitKind(node, response);
-        if (waitKind == WaitKind.ON_EVENT) {
-            parkForOnEvent(node, response);
+    private void runFallbackNode(String failedNodeId) {
+        WorkflowNode fallbackNode = workflow.getStates().get(workflow.getDefaultFailureNode());
+        if (fallbackNode == null) {
             return;
         }
-        if (waitKind == WaitKind.SCHEDULER_WAIT) {
-            parkForScheduler(node, response);
-            return;
+        try {
+            logger.info("WfId: {} Running fallback node: {} for failed node: {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId);
+            // Tag this one invocation's request payload with the node that triggered it —
+            // a copy, not a mutation of the shared DSL object — purely so the DAG view can
+            // recover the causal edge (failedNode -> fallback) the same way it recovers
+            // real dependsOn edges, without needing its own fallback-specific concept.
+            WorkflowNode taggedFallbackNode = new WorkflowNode(
+                    fallbackNode.getInstanceName(), fallbackNode.getResourceId(), fallbackNode.getResourceVersion(),
+                    fallbackNode.getType(), fallbackNode.getParameters(), fallbackNode.getContextOverrideKey(),
+                    fallbackNode.getNextNode(), fallbackNode.isEnd(), fallbackNode.getTimeoutSeconds(),
+                    fallbackNode.getRetryConfig(), fallbackNode.getNodeDefinition(),
+                    fallbackNode.getWaitConfig(), List.of(failedNodeId));
+            nodeExecutor.executeNodeWithoutStatusUpdate(taggedFallbackNode, threadContext);
+        } catch (Exception e) {
+            logger.error("WfId: {} Fallback node: {} failed for node: {} — {}",
+                    workflowState.getWorkflowId(), fallbackNode.getInstanceName(), failedNodeId, e.getMessage(), e);
         }
+    }
 
-        completed.add(nodeName);
-        onNodeComplete(nodeName, node, response);
+    /**
+     * Signalled via GenericWorkflow.unsidelineWorkflow — unblocks the coroutine parked in
+     * pauseForUnsideline() for this node so it retries.
+     */
+    public void unsideline(String nodeId) {
+        pausedNodes.put(nodeId, true);
     }
 
     private enum WaitKind {
@@ -197,12 +279,6 @@ public class ParallelWorkflowEngine {
 
     private void handleBranchCompletion(String branchName, ActivityThinResponse response) {
         String selectedNext = response.getNextNode();
-        if (selectedNext == null) {
-            pruneAllBranchArms(branchName);
-            failedNodes.add(branchName);
-            checkTermination();
-            return;
-        }
         branchSelections.put(branchName, selectedNext);
         workflowState.setBranchSelections(branchSelections);
 
@@ -269,13 +345,6 @@ public class ParallelWorkflowEngine {
             }
         }
         return true;
-    }
-
-    private void pruneAllBranchArms(String branchName) {
-        List<String> armTargets = branchTargetGroups.getOrDefault(branchName, Collections.emptyList());
-        for (String arm : armTargets) {
-            skipSubtree(arm);
-        }
     }
 
     private WaitKind resolveWaitKind(WorkflowNode node, ActivityThinResponse response) {

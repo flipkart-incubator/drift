@@ -51,6 +51,11 @@ public class FakeGenericWorkflowImpl implements GenericWorkflow {
     }
 
     @Override
+    public void unsidelineWorkflow(String nodeId) {
+        // not exercised by this integration test
+    }
+
+    @Override
     public WorkflowState getWorkflowState() {
         WorkflowState state = new WorkflowState();
         state.setWorkflowId(workflowId);
