@@ -223,6 +223,7 @@ public class ParallelWorkflowEngine {
 
         workflowState.setErrorMessage("Error message: " + errorMessage);
         workflowState.getNodeStates().put(nodeName, new NodeState(nodeName, NodeStatus.PAUSED, null, null));
+        workflowState.setStatus(WorkflowStatus.SIDELINED);
 
         logger.info("WfId: {} Node: {} paused — awaiting unsideline signal", workflowState.getWorkflowId(), nodeName);
         pausedNodes.putIfAbsent(nodeName, false);
@@ -236,6 +237,9 @@ public class ParallelWorkflowEngine {
 
         pausedNodes.remove(nodeName);
         workflowState.setErrorMessage(null);
+        if (pausedNodes.isEmpty()) {
+            workflowState.setStatus(WorkflowStatus.RUNNING);
+        }
         logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeName);
         return true;
     }

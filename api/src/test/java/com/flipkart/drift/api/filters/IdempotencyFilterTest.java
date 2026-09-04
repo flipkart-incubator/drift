@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 class IdempotencyFilterTest {
 
     private static final String HEADER = "X-Drift-Idempotency-Key";
+    private static final String USE_KEY_AS_WORKFLOW_ID_HEADER = "X-Drift-Idempotency-Key-As-Workflow-Id";
 
     private IdempotencyFilter filter;
 
@@ -44,7 +45,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER));
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        filter = new IdempotencyFilter(resolver);
+        filter = new IdempotencyFilter(resolver, config);
     }
 
     @AfterEach
@@ -53,6 +54,10 @@ class IdempotencyFilterTest {
     }
 
     private ContainerRequestContext contextFor(String path, String headerValue) {
+        return contextFor(path, headerValue, null);
+    }
+
+    private ContainerRequestContext contextFor(String path, String headerValue, String useKeyAsWorkflowIdValue) {
         ContainerRequestContext ctx = mock(ContainerRequestContext.class);
         UriInfo uriInfo = mock(UriInfo.class);
         when(uriInfo.getPath()).thenReturn(path);
@@ -60,6 +65,9 @@ class IdempotencyFilterTest {
         MultivaluedMap<String, String> headers = new MultivaluedStringMap();
         if (headerValue != null) {
             headers.add(HEADER, headerValue);
+        }
+        if (useKeyAsWorkflowIdValue != null) {
+            headers.add(USE_KEY_AS_WORKFLOW_ID_HEADER, useKeyAsWorkflowIdValue);
         }
         when(ctx.getHeaders()).thenReturn(headers);
         return ctx;
@@ -111,7 +119,7 @@ class IdempotencyFilterTest {
         config.setHeaders(List.of(HEADER));
         config.setOptional(false);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter strictFilter = new IdempotencyFilter(resolver);
+        IdempotencyFilter strictFilter = new IdempotencyFilter(resolver, config);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");
@@ -121,12 +129,42 @@ class IdempotencyFilterTest {
     }
 
     @Test
+    void useKeyAsWorkflowIdHeaderTrueUsesRawKeyDirectly() {
+        RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
+
+        filter.filter(contextFor("v3/workflow/start", "order-123", "true"));
+
+        assertEquals("order-123", RequestThreadContext.get().getResolvedWorkflowId());
+    }
+
+    @Test
+    void useKeyAsWorkflowIdHeaderAbsentFallsBackToHashedWorkflowId() {
+        RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
+
+        filter.filter(contextFor("v3/workflow/start", "order-123", null));
+
+        assertTrue(RequestThreadContext.get().getResolvedWorkflowId().startsWith("WF-tenant1-client1-"));
+    }
+
+    @Test
+    void useKeyAsWorkflowIdHeaderFalseFallsBackToHashedWorkflowId() {
+        RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
+
+        filter.filter(contextFor("v3/workflow/start", "order-123", "false"));
+
+        assertTrue(RequestThreadContext.get().getResolvedWorkflowId().startsWith("WF-tenant1-client1-"));
+    }
+
+    @Test
     void ambiguousHeadersThrows400() {
         IdempotencyConfig config = new IdempotencyConfig();
         config.setHeaders(List.of(HEADER, "X_REQUEST_ID"));
         config.setOptional(true);
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
-        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(resolver);
+        IdempotencyFilter ambiguousFilter = new IdempotencyFilter(resolver, config);
 
         RequestThreadContext.get().setTenant("tenant1");
         RequestThreadContext.get().setClientId("client1");

@@ -83,6 +83,25 @@ class IdempotencyKeyResolverTest {
     }
 
     @Test
+    void resolveWithUseKeyAsWorkflowIdTrueUsesRawKeyDirectly() {
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
+
+        IdempotencyKey key = resolver.resolve("tenant1", "client1", "order-123", true);
+
+        assertEquals("order-123", key.getWorkflowId());
+    }
+
+    @Test
+    void resolveWithUseKeyAsWorkflowIdFalseDerivesHashedWorkflowId() {
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
+
+        IdempotencyKey key = resolver.resolve("tenant1", "client1", "order-123", false);
+
+        assertTrue(key.getWorkflowId().startsWith("WF-tenant1-client1-"));
+        assertNotEquals("order-123", key.getWorkflowId());
+    }
+
+    @Test
     void toWorkflowIdIncludesTenantAndClientIdAndSha256() {
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
         String workflowId = resolver.toWorkflowId("Tenant1", "Client1", "raw-key");
