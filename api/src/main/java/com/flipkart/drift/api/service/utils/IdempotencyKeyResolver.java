@@ -91,21 +91,14 @@ public class IdempotencyKeyResolver {
     }
 
     public IdempotencyKey resolve(String tenant, String clientId, String rawKey) {
-        return resolve(tenant, clientId, rawKey, false);
-    }
-
-    /**
-     * @param useKeyAsWorkflowId when true, uses rawKey directly as the Temporal workflowId
-     *                           instead of deriving a tenant/clientId-scoped hash. Callers
-     *                           opting into this take on responsibility for rawKey uniqueness
-     *                           across tenants/clients themselves.
-     */
-    public IdempotencyKey resolve(String tenant, String clientId, String rawKey, boolean useKeyAsWorkflowId) {
+        String workflowId = idempotencyConfig.isUseRawKeyAsWorkflowId()
+                ? rawKey
+                : toWorkflowId(tenant, clientId, rawKey);
         return IdempotencyKey.builder()
                 .tenant(tenant)
                 .clientId(clientId)
                 .rawKey(rawKey)
-                .workflowId(useKeyAsWorkflowId ? rawKey : toWorkflowId(tenant, clientId, rawKey))
+                .workflowId(workflowId)
                 .build();
     }
 }

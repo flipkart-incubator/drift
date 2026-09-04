@@ -18,8 +18,13 @@ public class IdempotencyConfig {
     /** Whether requests without an idempotency key header are allowed through unchanged. */
     private boolean optional = true;
     /**
-     * Header that, when set to "true", tells Drift to use the raw idempotency key
-     * value directly as the Temporal workflowId instead of deriving a hashed one.
+     * When true, {@code rawKey} is used as the workflowId verbatim, with no tenant/clientId
+     * scoping and no hash. Only safe when rawKey is already guaranteed globally unique
+     * across all tenants/clients (e.g. caller-generated UUIDs), or this deployment is
+     * single-tenant/single-client. Operators enabling this take on full responsibility for
+     * that uniqueness contract and for rawKey being non-sensitive (Temporal workflowIds are
+     * visible in the Temporal UI/CLI to anyone with namespace access) — Drift performs no
+     * collision-prevention of its own on this path.
      */
-    private String useKeyAsWorkflowIdHeader = "X-Drift-Idempotency-Key-As-Workflow-Id";
+    private boolean useRawKeyAsWorkflowId = false;
 }

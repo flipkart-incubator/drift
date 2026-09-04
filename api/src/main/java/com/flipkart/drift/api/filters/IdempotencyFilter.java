@@ -1,6 +1,5 @@
 package com.flipkart.drift.api.filters;
 
-import com.flipkart.drift.api.config.IdempotencyConfig;
 import com.flipkart.drift.api.service.utils.IdempotencyKeyResolver;
 import com.google.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -27,12 +26,10 @@ public class IdempotencyFilter implements ContainerRequestFilter {
     private static final Set<String> APPLY_TO_PATHS = Set.of("/v3/workflow/start");
 
     private final IdempotencyKeyResolver resolver;
-    private final IdempotencyConfig idempotencyConfig;
 
     @Inject
-    public IdempotencyFilter(IdempotencyKeyResolver resolver, IdempotencyConfig idempotencyConfig) {
+    public IdempotencyFilter(IdempotencyKeyResolver resolver) {
         this.resolver = resolver;
-        this.idempotencyConfig = idempotencyConfig;
     }
 
     @Override
@@ -52,10 +49,7 @@ public class IdempotencyFilter implements ContainerRequestFilter {
         String tenant = threadContext.getTenant();
         String clientId = threadContext.getClientId();
 
-        boolean useKeyAsWorkflowId = "true".equalsIgnoreCase(
-                requestContext.getHeaders().getFirst(idempotencyConfig.getUseKeyAsWorkflowIdHeader()));
-
-        IdempotencyKey key = resolver.resolve(tenant, clientId, rawKey, useKeyAsWorkflowId);
+        IdempotencyKey key = resolver.resolve(tenant, clientId, rawKey);
         threadContext.setResolvedWorkflowId(key.getWorkflowId());
         threadContext.setIdempotencyKey(rawKey);
 

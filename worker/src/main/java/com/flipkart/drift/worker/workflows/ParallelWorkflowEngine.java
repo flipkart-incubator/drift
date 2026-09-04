@@ -221,6 +221,10 @@ public class ParallelWorkflowEngine {
         }
         runFallbackNode(nodeName);
 
+        if (isGlobalTerminal()) {
+            return false;
+        }
+
         workflowState.setErrorMessage("Error message: " + errorMessage);
         workflowState.getNodeStates().put(nodeName, new NodeState(nodeName, NodeStatus.PAUSED, null, null));
         workflowState.setStatus(WorkflowStatus.SIDELINED);
