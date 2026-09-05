@@ -226,9 +226,14 @@ public class ParallelWorkflowEngine {
         if (isGlobalTerminal()) {
             return false;
         }
+        // Register before running the fallback (a remote activity — the coroutine yields) so an
+        // unsideline signal arriving during that yield is captured instead of being ignored as
+        // "not currently paused" by unsideline()'s guard.
+        pausedNodes.putIfAbsent(nodeName, false);
         runFallbackNode(nodeName);
 
         if (isGlobalTerminal()) {
+            pausedNodes.remove(nodeName);
             return false;
         }
 
@@ -237,7 +242,6 @@ public class ParallelWorkflowEngine {
         workflowState.setStatus(WorkflowStatus.SIDELINED);
 
         logger.info("WfId: {} Node: {} paused — awaiting unsideline signal", workflowState.getWorkflowId(), nodeName);
-        pausedNodes.putIfAbsent(nodeName, false);
         io.temporal.workflow.Workflow.await(() ->
                 Boolean.TRUE.equals(pausedNodes.get(nodeName)) || isGlobalTerminal());
 
