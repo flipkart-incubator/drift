@@ -173,6 +173,13 @@ public class ParallelWorkflowEngine {
                 return;
             }
 
+            if (response.getWorkflowStatus() == WorkflowStatus.SIDELINED) {
+                if (!pauseForUnsideline(nodeName, "Node returned SIDELINED status")) {
+                    return;
+                }
+                continue;
+            }
+
             if (response.getWorkflowStatus() == WorkflowStatus.FAILED) {
                 logger.error("WfId: {} Node {} returned FAILED status", workflowState.getWorkflowId(), nodeName);
                 if (!pauseForUnsideline(nodeName, "Node returned FAILED status")) {
@@ -240,8 +247,8 @@ public class ParallelWorkflowEngine {
         }
 
         pausedNodes.remove(nodeName);
-        workflowState.setErrorMessage(null);
         if (pausedNodes.isEmpty()) {
+            workflowState.setErrorMessage(null);
             workflowState.setStatus(WorkflowStatus.RUNNING);
         }
         logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeName);
@@ -280,9 +287,6 @@ public class ParallelWorkflowEngine {
      * not create a stale entry, since that would keep pausedNodes non-empty forever and block
      * the RUNNING status restoration in pauseForUnsideline even after every real pause resolves.
      */
-    // TEST GAP: no TestWorkflowEnvironment harness exists for this class (constructor requires
-    // a live Temporal workflow execution context via Workflow.getLogger), so the unknown-vs-paused
-    // guard below is unverified by an automated test.
     public void unsideline(String nodeId) {
         if (!pausedNodes.containsKey(nodeId)) {
             logger.warn("WfId: {} Unsideline signal received for node {} but it is not currently paused; ignoring",
