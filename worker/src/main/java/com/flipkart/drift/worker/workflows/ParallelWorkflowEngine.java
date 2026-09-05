@@ -275,9 +275,20 @@ public class ParallelWorkflowEngine {
 
     /**
      * Signalled via GenericWorkflow.unsidelineWorkflow — unblocks the coroutine parked in
-     * pauseForUnsideline() for this node so it retries.
+     * pauseForUnsideline() for this node so it retries. Only acts on nodes that are actually
+     * currently paused (present in pausedNodes) — an unknown or already-resumed nodeId must
+     * not create a stale entry, since that would keep pausedNodes non-empty forever and block
+     * the RUNNING status restoration in pauseForUnsideline even after every real pause resolves.
      */
+    // TEST GAP: no TestWorkflowEnvironment harness exists for this class (constructor requires
+    // a live Temporal workflow execution context via Workflow.getLogger), so the unknown-vs-paused
+    // guard below is unverified by an automated test.
     public void unsideline(String nodeId) {
+        if (!pausedNodes.containsKey(nodeId)) {
+            logger.warn("WfId: {} Unsideline signal received for node {} but it is not currently paused; ignoring",
+                    workflowState.getWorkflowId(), nodeId);
+            return;
+        }
         pausedNodes.put(nodeId, true);
     }
 
