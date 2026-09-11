@@ -97,13 +97,16 @@ public abstract class BaseNodeActivityImpl<T extends NodeDefinition> implements 
 
         // Step 2b: If node is marked as terminal (end=true) and the node's own status is still
         // transitional (RUNNING), override to COMPLETED so all node types correctly terminate the workflow.
-        // FAILED, COMPLETED, ASYNC_COMPLETE, and WAITING are intentional and preserved —
-        // WAITING must not be overridden so WaitNodes with end=true still park for an event.
+        // FAILED, COMPLETED, ASYNC_COMPLETE, WAITING, and SIDELINED are intentional and preserved —
+        // WAITING must not be overridden so WaitNodes with end=true still park for an event, and
+        // SIDELINED must not be silently promoted to COMPLETED — the caller decides whether to
+        // accept or reject it (see WorkflowNodeExecutor.handleNodeResponseStatus).
         if (Boolean.TRUE.equals(activityRequest.getIsTerminal())
                 && response.getWorkflowStatus() != WorkflowStatus.FAILED
                 && response.getWorkflowStatus() != WorkflowStatus.COMPLETED
                 && response.getWorkflowStatus() != WorkflowStatus.ASYNC_COMPLETE
-                && response.getWorkflowStatus() != WorkflowStatus.WAITING) {
+                && response.getWorkflowStatus() != WorkflowStatus.WAITING
+                && response.getWorkflowStatus() != WorkflowStatus.SIDELINED) {
             response.setWorkflowStatus(WorkflowStatus.COMPLETED);
         }
 

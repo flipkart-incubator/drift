@@ -159,6 +159,14 @@ public class WorkflowNodeExecutor {
                 // Early ON_EVENT signal(s) satisfied the condition before the WaitNode was reached.
                 // No park needed — execution continues to the next node normally.
                 break;
+            case SIDELINED:
+                // SIDELINED pause/unsideline semantics exist only in ParallelWorkflowEngine today —
+                // serial execution has no signal handler or park loop for it. Reject explicitly
+                // rather than silently treating it like RUNNING/advancing past it.
+                throw ApplicationFailure.newNonRetryableFailure(
+                        "SIDELINED status is not supported in serial workflow execution",
+                        "SIDELINED_NOT_SUPPORTED_SERIAL"
+                );
             default:
                 logger.warn("Unknown workflow status: {}", this.workflowState.getStatus());
                 break;

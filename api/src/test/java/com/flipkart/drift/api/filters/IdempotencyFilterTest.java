@@ -121,6 +121,16 @@ class IdempotencyFilterTest {
     }
 
     @Test
+    void resolvedWorkflowIdIsAlwaysHashedRegardlessOfClientHeaders() {
+        RequestThreadContext.get().setTenant("tenant1");
+        RequestThreadContext.get().setClientId("client1");
+
+        filter.filter(contextFor("v3/workflow/start", "order-123"));
+
+        assertTrue(RequestThreadContext.get().getResolvedWorkflowId().startsWith("WF-tenant1-client1-"));
+    }
+
+    @Test
     void ambiguousHeadersThrows400() {
         IdempotencyConfig config = new IdempotencyConfig();
         config.setHeaders(List.of(HEADER, "X_REQUEST_ID"));

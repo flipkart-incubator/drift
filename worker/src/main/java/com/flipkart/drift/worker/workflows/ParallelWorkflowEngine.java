@@ -173,6 +173,13 @@ public class ParallelWorkflowEngine {
                 return;
             }
 
+            if (response.getWorkflowStatus() == WorkflowStatus.SIDELINED) {
+                if (!pauseForUnsideline(nodeName, "Node returned SIDELINED status")) {
+                    return;
+                }
+                continue;
+            }
+
             if (response.getWorkflowStatus() == WorkflowStatus.FAILED) {
                 logger.error("WfId: {} Node {} returned FAILED status", workflowState.getWorkflowId(), nodeName);
                 if (!pauseForUnsideline(nodeName, "Node returned FAILED status")) {
@@ -219,13 +226,22 @@ public class ParallelWorkflowEngine {
         if (isGlobalTerminal()) {
             return false;
         }
+        // Register before running the fallback (a remote activity — the coroutine yields) so an
+        // unsideline signal arriving during that yield is captured instead of being ignored as
+        // "not currently paused" by unsideline()'s guard.
+        pausedNodes.putIfAbsent(nodeName, false);
         runFallbackNode(nodeName);
+
+        if (isGlobalTerminal()) {
+            pausedNodes.remove(nodeName);
+            return false;
+        }
 
         workflowState.setErrorMessage("Error message: " + errorMessage);
         workflowState.getNodeStates().put(nodeName, new NodeState(nodeName, NodeStatus.PAUSED, null, null));
+        workflowState.setStatus(WorkflowStatus.SIDELINED);
 
         logger.info("WfId: {} Node: {} paused — awaiting unsideline signal", workflowState.getWorkflowId(), nodeName);
-        pausedNodes.putIfAbsent(nodeName, false);
         io.temporal.workflow.Workflow.await(() ->
                 Boolean.TRUE.equals(pausedNodes.get(nodeName)) || isGlobalTerminal());
 
@@ -235,7 +251,10 @@ public class ParallelWorkflowEngine {
         }
 
         pausedNodes.remove(nodeName);
-        workflowState.setErrorMessage(null);
+        if (pausedNodes.isEmpty()) {
+            workflowState.setErrorMessage(null);
+            workflowState.setStatus(WorkflowStatus.RUNNING);
+        }
         logger.info("WfId: {} Node: {} received unsideline signal — retrying", workflowState.getWorkflowId(), nodeName);
         return true;
     }
@@ -267,9 +286,17 @@ public class ParallelWorkflowEngine {
 
     /**
      * Signalled via GenericWorkflow.unsidelineWorkflow — unblocks the coroutine parked in
-     * pauseForUnsideline() for this node so it retries.
+     * pauseForUnsideline() for this node so it retries. Only acts on nodes that are actually
+     * currently paused (present in pausedNodes) — an unknown or already-resumed nodeId must
+     * not create a stale entry, since that would keep pausedNodes non-empty forever and block
+     * the RUNNING status restoration in pauseForUnsideline even after every real pause resolves.
      */
     public void unsideline(String nodeId) {
+        if (!pausedNodes.containsKey(nodeId)) {
+            logger.warn("WfId: {} Unsideline signal received for node {} but it is not currently paused; ignoring",
+                    workflowState.getWorkflowId(), nodeId);
+            return;
+        }
         pausedNodes.put(nodeId, true);
     }
 

@@ -83,6 +83,16 @@ class IdempotencyKeyResolverTest {
     }
 
     @Test
+    void resolveAlwaysDerivesHashedWorkflowId() {
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
+
+        IdempotencyKey key = resolver.resolve("tenant1", "client1", "order-123");
+
+        assertTrue(key.getWorkflowId().startsWith("WF-tenant1-client1-"));
+        assertNotEquals("order-123", key.getWorkflowId());
+    }
+
+    @Test
     void toWorkflowIdIncludesTenantAndClientIdAndSha256() {
         IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
         String workflowId = resolver.toWorkflowId("Tenant1", "Client1", "raw-key");
@@ -122,5 +132,39 @@ class IdempotencyKeyResolverTest {
         String id1 = resolver.toWorkflowId("tenant1", "client1", "raw-key-a");
         String id2 = resolver.toWorkflowId("tenant1", "client1", "raw-key-b");
         assertNotEquals(id1, id2);
+    }
+
+    @Test
+    void serverConfigOptInUsesRawKeyVerbatimWithNoTenantOrClientScoping() {
+        IdempotencyConfig config = config(true, HEADER);
+        config.setUseRawKeyAsWorkflowId(true);
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
+
+        IdempotencyKey key = resolver.resolve("tenant1", "client1", "order-123");
+
+        assertEquals("order-123", key.getWorkflowId());
+    }
+
+    @Test
+    void serverConfigOptInCollidesAcrossTenantsAndClientsWhenRawKeyRepeats() {
+        IdempotencyConfig config = config(true, HEADER);
+        config.setUseRawKeyAsWorkflowId(true);
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config);
+
+        String id1 = resolver.resolve("tenant1", "client1", "order-123").getWorkflowId();
+        String id2 = resolver.resolve("tenant1", "client2", "order-123").getWorkflowId();
+        String id3 = resolver.resolve("tenant2", "client1", "order-123").getWorkflowId();
+
+        assertEquals(id1, id2);
+        assertEquals(id1, id3);
+    }
+
+    @Test
+    void defaultConfigDoesNotUseRawKeyAsWorkflowId() {
+        IdempotencyKeyResolver resolver = new IdempotencyKeyResolver(config(true, HEADER));
+
+        IdempotencyKey key = resolver.resolve("tenant1", "client1", "order-123");
+
+        assertNotEquals("order-123", key.getWorkflowId());
     }
 }

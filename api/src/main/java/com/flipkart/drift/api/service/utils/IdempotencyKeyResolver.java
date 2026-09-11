@@ -91,11 +91,14 @@ public class IdempotencyKeyResolver {
     }
 
     public IdempotencyKey resolve(String tenant, String clientId, String rawKey) {
+        String workflowId = idempotencyConfig.isUseRawKeyAsWorkflowId()
+                ? rawKey
+                : toWorkflowId(tenant, clientId, rawKey);
         return IdempotencyKey.builder()
                 .tenant(tenant)
                 .clientId(clientId)
                 .rawKey(rawKey)
-                .workflowId(toWorkflowId(tenant, clientId, rawKey))
+                .workflowId(workflowId)
                 .build();
     }
 }
