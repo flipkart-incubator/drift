@@ -2,7 +2,6 @@ package com.flipkart.drift.worker.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -15,9 +14,13 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ActivityDefaultsConfig {
+
+    public ActivityDefaultsConfig(int defaultMaxAttempts, int defaultTimeoutSeconds) {
+        this.defaultMaxAttempts = defaultMaxAttempts;
+        this.defaultTimeoutSeconds = defaultTimeoutSeconds;
+    }
 
     @JsonProperty("defaultMaxAttempts")
     private int defaultMaxAttempts = 1;
@@ -25,4 +28,11 @@ public class ActivityDefaultsConfig {
     // 10s was the pre-existing hardcoded startToCloseTimeout — preserved here for backward compatibility
     @JsonProperty("defaultTimeoutSeconds")
     private int defaultTimeoutSeconds = 10;
+
+    // WorkflowContextManagerActivity (HBase persist/resume/disconnected-node): short bound so a hung client call retries instead of blocking
+    @JsonProperty("contextTimeoutSeconds")
+    private int contextTimeoutSeconds = 15;
+
+    @JsonProperty("contextMaxAttempts")
+    private int contextMaxAttempts = 5;
 }

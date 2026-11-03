@@ -62,6 +62,10 @@ workerDynamicOptions:
   workflowCacheSize: 600
   maxWorkflowThreadCount: 800
 
+activityDefaults:
+  contextTimeoutSeconds: 15
+  contextMaxAttempts: 5
+
 # Optional Hadoop identity parameters for HBase connection
 hadoopUserName: ${HADOOP_USERNAME}
 hadoopLoginUser: ${HADOOP_LOGIN_USER}

@@ -15,6 +15,7 @@ import com.flipkart.drift.sdk.model.enums.WorkflowStatus;
 import com.flipkart.drift.commons.model.node.Workflow;
 import com.flipkart.drift.commons.model.node.WorkflowNode;
 import com.flipkart.drift.commons.model.temporal.WorkflowState;
+import com.flipkart.drift.worker.temporal.ActivityOptionsBuilderHolder;
 import com.flipkart.drift.worker.temporal.OptionsStore;
 import io.temporal.failure.ApplicationFailure;
 import lombok.Data;
@@ -99,7 +100,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                     : this.workflowState.getCurrentNodeRef();
 
             if (nodeRef != null) {
-                io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
+                io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, ActivityOptionsBuilderHolder.get().buildContextOptions())
                         .resumeWorkflowState(workflowResumeRequest, nodeRef);
             }
 
@@ -217,7 +218,7 @@ public class GenericWorkflowImpl implements com.flipkart.drift.workflows.Generic
                         ? workflowStartRequest.getWorkflowExecutionMode()
                         : WorkflowExecutionMode.SYNC
         );
-        io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
+        io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, ActivityOptionsBuilderHolder.get().buildContextOptions())
                 .persistWorkflowState(workflowStartRequest, io.temporal.workflow.Workflow.getInfo().getWorkflowId());
     }
 

@@ -124,7 +124,11 @@ configFiles:
       activityTaskPoller: 50
       workflowCacheSize: 600
       maxWorkflowThreadCount: 800
-    
+
+    activityDefaults:
+      contextTimeoutSeconds: 15
+      contextMaxAttempts: 5
+
     hadoopUserName: ${HADOOP_USERNAME}
     hadoopLoginUser: ${HADOOP_LOGIN_USER}
     
