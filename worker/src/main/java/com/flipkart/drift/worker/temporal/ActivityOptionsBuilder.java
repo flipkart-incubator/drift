@@ -14,10 +14,31 @@ public class ActivityOptionsBuilder {
 
     private final int defaultTimeoutSeconds;
     private final int defaultMaxAttempts;
+    private final int contextTimeoutSeconds;
+    private final int contextMaxAttempts;
 
     public ActivityOptionsBuilder(@NonNull ActivityDefaultsConfig defaults) {
         this.defaultTimeoutSeconds = defaults.getDefaultTimeoutSeconds();
         this.defaultMaxAttempts = defaults.getDefaultMaxAttempts();
+        this.contextTimeoutSeconds = defaults.getContextTimeoutSeconds();
+        this.contextMaxAttempts = defaults.getContextMaxAttempts();
+        // Fail at worker startup (constructed in TemporalWorkerManaged.start, before polling), not on first workflow
+        validatePositive(contextTimeoutSeconds, "contextTimeoutSeconds");
+        validatePositive(contextMaxAttempts, "contextMaxAttempts");
+    }
+
+    /** Options for WorkflowContextManagerActivity, driven by activityDefaults.context* config. */
+    public ActivityOptions buildContextOptions() {
+        NodeRetryConfig retry = new NodeRetryConfig();
+        return ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(contextTimeoutSeconds))
+                .setRetryOptions(RetryOptions.newBuilder()
+                        .setMaximumAttempts(contextMaxAttempts)
+                        .setInitialInterval(Duration.ofSeconds(retry.getInitialIntervalSeconds()))
+                        .setMaximumInterval(Duration.ofSeconds(retry.getMaxIntervalSeconds()))
+                        .setBackoffCoefficient(retry.getBackoffCoefficient())
+                        .build())
+                .build();
     }
 
     public ActivityOptions build(WorkflowNode node) {

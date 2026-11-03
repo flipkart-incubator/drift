@@ -139,6 +139,26 @@ class ActivityOptionsBuilderTest {
     }
 
     @Test
+    void contextOptionsUseConfiguredValues() {
+        ActivityDefaultsConfig defaults = new ActivityDefaultsConfig();
+        defaults.setContextTimeoutSeconds(20);
+        defaults.setContextMaxAttempts(4);
+        ActivityOptions options = new ActivityOptionsBuilder(defaults).buildContextOptions();
+        assertEquals(Duration.ofSeconds(20), options.getStartToCloseTimeout());
+        assertEquals(4, options.getRetryOptions().getMaximumAttempts());
+    }
+
+    @Test
+    void rejectsNonPositiveContextConfigAtConstruction() {
+        ActivityDefaultsConfig badTimeout = new ActivityDefaultsConfig();
+        badTimeout.setContextTimeoutSeconds(0);
+        ActivityDefaultsConfig badAttempts = new ActivityDefaultsConfig();
+        badAttempts.setContextMaxAttempts(-1);
+        assertThrows(IllegalArgumentException.class, () -> new ActivityOptionsBuilder(badTimeout));
+        assertThrows(IllegalArgumentException.class, () -> new ActivityOptionsBuilder(badAttempts));
+    }
+
+    @Test
     void rejectsBackoffBelowOne() {
         ActivityOptionsBuilder builder = new ActivityOptionsBuilder(new ActivityDefaultsConfig(1, 10));
         assertThrows(IllegalArgumentException.class, () -> builder.build(node(null, retry(2, 1, 20, 0.5))));

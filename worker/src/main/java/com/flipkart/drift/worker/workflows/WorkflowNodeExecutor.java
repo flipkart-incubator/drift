@@ -192,7 +192,7 @@ public class WorkflowNodeExecutor {
         ActivityStub untypedActivityStub = io.temporal.workflow.Workflow.newUntypedActivityStub(
                 ActivityOptionsBuilderHolder.get().build(workflowNode));
         ActivityResponse response;
-        io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, OptionsStore.activityOptions)
+        io.temporal.workflow.Workflow.newActivityStub(WorkflowContextManagerActivity.class, ActivityOptionsBuilderHolder.get().buildContextOptions())
                 .disconnectedNodeState(workflowUtilityRequest, workflowState.getWorkflowId());
         try {
             logger.info("Executing disconnected node: {} with type: {}", workflowNode.getInstanceName(), nodeDefinition.getType());
